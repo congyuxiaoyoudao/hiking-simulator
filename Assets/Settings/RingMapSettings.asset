@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f54186924acc2ed4ab9112a62d5ecc0c, type: 3}
+  m_Name: RingMapSettings
+  m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.RingMapSettings
+  blockCount: 6
+  stationLength: 6
+  panoramaScale: 1.5
+  patchesPerStation: 18
+  pathMaterial: {fileID: 2100000, guid: 1383ba9e2843ba34a8acdb9e19110c18, type: 2}
+  ringThickness: 0.247
+  stopPositions:
+  - 0.50000006
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.5
+
