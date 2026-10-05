@@ -10,16 +10,17 @@ namespace Hiking.Journey
         public Camera WorldCamera;
         [Header("直线旅途与全景")]
         [UnityEngine.Serialization.FormerlySerializedAs("routeScreenWidth")]
-        [Tooltip("仅影响全景构图，旅途起点固定贴屏幕边缘")]
+        [Tooltip("全景视角宽窄：1 对应 50° 视角；值越小，视角越宽。旅途视窗不受影响。")]
         [Range(.6f, 1f)] public float panoramaScreenWidth = .84f;
-        [Tooltip("旅途中可见的站点宽度，非整条路线")]
-        [Range(.75f, 2f)] public float visibleStations = 1.25f;
         [Range(30, 80)] public float overviewPitchAngle = 45;
         [InspectorName("螺旋上升时长"), Min(.1f)] public float overviewTransitionDuration = 6;
         [InspectorName("画面衔接时长"), Min(.1f)] public float projectionTransitionDuration = .8f;
+        [InspectorName("螺旋起始抬升高度"), Min(1)] public float revealStartHeight = 5;
+        [InspectorName("螺旋起始向外距离"), Min(.1f)] public float revealStartOutward = 3;
+        [InspectorName("螺旋起始视角"), Range(15, 50)] public float revealStartFieldOfView = 35;
         [Tooltip("Canvas 中的画面衔接层，布局在场景中编辑")]
         public RawImage transitionImage;
-        [InspectorName("全景相机最低高度"), Min(1)] public float overviewHeight = 30;
+        [InspectorName("全景相机高度（距环心）"), Min(1)] public float overviewHeight = 30;
         public float RevealOrbitDegrees { get; private set; }
         GameFlowController flow;
         Coroutine reveal;
@@ -59,12 +60,10 @@ namespace Hiking.Journey
         {
             var map = flow.Map;
             WorldCamera.ResetProjectionMatrix();
-            float width = map.RouteLength / map.stations.Length * visibleStations;
+            float width = map.RouteLength / map.stations.Length;
             float progress = flow.Traveler.Progress01;
-            float foxX = map.transform.position.x + progress * map.RouteLength - map.RouteLength * .5f;
-            // Screen position is exactly progress (0 -> left edge, 1 -> right edge).
-            // Do not use the old serialized framing margin here: open scenes may retain 0.84.
-            float cameraX = foxX - (progress - .5f) * width;
+            float cameraX = map.transform.position.x - map.RouteLength * .5f
+                + map.ViewStartDistance(progress) + width * .5f;
             WorldCamera.orthographic = true;
             WorldCamera.orthographicSize = width / (2 * Mathf.Max(.1f, WorldCamera.aspect));
             var rotation = Quaternion.Euler(overviewPitchAngle, 0, 0);
@@ -76,24 +75,15 @@ namespace Hiking.Journey
         {
             WorldCamera.ResetProjectionMatrix();
             WorldCamera.orthographic = false;
-            WorldCamera.fieldOfView = 50;
+            WorldCamera.fieldOfView = PanoramaFieldOfView;
             var rotation = Quaternion.Euler(overviewPitchAngle, yaw, 0);
-            var inverse = Quaternion.Inverse(rotation);
-            Vector3 extent = bounds.extents;
-            float halfX = 0, halfY = 0;
-            for (int x = -1; x <= 1; x += 2)
-                for (int y = -1; y <= 1; y += 2)
-                    for (int z = -1; z <= 1; z += 2)
-                    {
-                        var p = inverse * Vector3.Scale(extent, new Vector3(x, y, z));
-                        halfX = Mathf.Max(halfX, Mathf.Abs(p.x)); halfY = Mathf.Max(halfY, Mathf.Abs(p.y));
-                    }
-            float size = Mathf.Max(halfX / (Mathf.Max(.1f, WorldCamera.aspect) * panoramaScreenWidth), halfY / .65f) * zoomFactor;
-            float distance = size / Mathf.Tan(WorldCamera.fieldOfView * Mathf.Deg2Rad * .5f) + bounds.extents.magnitude;
-            distance = Mathf.Max(distance, overviewHeight * zoomFactor / Mathf.Sin(overviewPitchAngle * Mathf.Deg2Rad));
+            // Height is the user's exact camera elevation above the ring center, not an auto-fit minimum.
+            float distance = Mathf.Max(1, overviewHeight) * zoomFactor /
+                Mathf.Max(.01f, Mathf.Sin(overviewPitchAngle * Mathf.Deg2Rad));
             WorldCamera.transform.SetPositionAndRotation(bounds.center - rotation * Vector3.forward * distance, rotation);
-            WorldCamera.farClipPlane = Mathf.Max(100, bounds.size.magnitude * 3 + 30);
+            WorldCamera.farClipPlane = Mathf.Max(100, distance + bounds.extents.magnitude * 2 + 10);
         }
+        float PanoramaFieldOfView => Mathf.Clamp(50 / Mathf.Max(.1f, panoramaScreenWidth), 5, 120);
         void BrowsePanorama()
         {
             var mouse = Mouse.current;
@@ -173,7 +163,7 @@ namespace Hiking.Journey
             Vector3 fox = flow.Traveler.transform.position;
 
             // Align the ring's tangent at the actual traveler progress, including previews mid-route.
-            float tangentYaw = (flow.Traveler.Progress01 - .5f) * 360;
+            float tangentYaw = (flow.Map.RouteDistanceAtProgress(flow.Traveler.Progress01) / flow.Map.RouteLength - .5f) * 360;
             var startRotation = Quaternion.Euler(overviewPitchAngle, tangentYaw, 0);
             var cameraRight = startRotation * Vector3.right;
             var cameraUp = startRotation * Vector3.up;
@@ -190,21 +180,19 @@ namespace Hiking.Journey
             WorldCamera.projectionMatrix = ortho;
             WorldCamera.transform.SetPositionAndRotation(startPosition, startRotation);
 
-            Vector3 fromCenter = startPosition - center;
+            // The assembled ring stays visible. A close, raised camera sees only its local arc.
+            Vector3 outward = Vector3.ProjectOnPlane(fox - center, Vector3.up).normalized;
+            Vector3 stagePosition = fox + outward * revealStartOutward + Vector3.up * revealStartHeight;
+            Quaternion stageRotation = Quaternion.LookRotation(fox - stagePosition);
+            Vector3 fromCenter = stagePosition - center;
             float startAngle = Mathf.Atan2(fromCenter.x, fromCenter.z) * Mathf.Rad2Deg;
             panoramaYaw = startAngle + 180;
             Frame(flow.Map.panoramaBounds, panoramaYaw, 1);
             Vector3 finalPosition = WorldCamera.transform.position;
             float finalRadius = new Vector2(finalPosition.x - center.x, finalPosition.z - center.z).magnitude;
-            // Stage at a comfortable distance before starting the orbit.
-            float ringRadius = flow.Map.radius * flow.Map.PanoramaScale;
-            float stageRadius = Mathf.Max(8, ringRadius * 1.8f);
-            float stageHeight = center.y + Mathf.Max(4, ringRadius * .35f);
-            float angleRadians = startAngle * Mathf.Deg2Rad;
-            Vector3 stagePosition = center + new Vector3(Mathf.Sin(angleRadians) * stageRadius,
-                stageHeight - center.y, Mathf.Cos(angleRadians) * stageRadius);
-            Quaternion stageRotation = Quaternion.LookRotation(center - stagePosition);
-            var perspective = Matrix4x4.Perspective(50, aspect, near, far);
+            float stageRadius = new Vector2(fromCenter.x, fromCenter.z).magnitude;
+            float stageHeight = stagePosition.y;
+            var perspective = Matrix4x4.Perspective(revealStartFieldOfView, aspect, near, far);
             float bridgeDuration = Mathf.Max(.1f, projectionTransitionDuration);
             for (float elapsed = 0; elapsed < bridgeDuration; elapsed += Time.unscaledDeltaTime)
             {
@@ -218,6 +206,7 @@ namespace Hiking.Journey
                 yield return null;
             }
             ProjectionBlend = 1;
+            WorldCamera.fieldOfView = revealStartFieldOfView;
             WorldCamera.ResetProjectionMatrix(); ClearSnapshot();
             flow.Traveler.SetTransitionInset(0);
 
@@ -231,7 +220,9 @@ namespace Hiking.Journey
                 float horizontal = Mathf.Lerp(stageRadius, finalRadius, t);
                 Vector3 position = center + new Vector3(Mathf.Sin(angle) * horizontal,
                     Mathf.Lerp(stageHeight, finalPosition.y, t) - center.y, Mathf.Cos(angle) * horizontal);
-                WorldCamera.transform.SetPositionAndRotation(position, Quaternion.LookRotation(center - position));
+                Vector3 lookAt = Vector3.Lerp(fox, center, t);
+                WorldCamera.fieldOfView = Mathf.Lerp(revealStartFieldOfView, PanoramaFieldOfView, t);
+                WorldCamera.transform.SetPositionAndRotation(position, Quaternion.LookRotation(lookAt - position));
                 yield return null;
             }
             // The orbit endpoint is calculated by the same framing method used for browsing.

@@ -3459,10 +3459,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.CameraController
   WorldCamera: {fileID: 1806386074}
   panoramaScreenWidth: 1
-  visibleStations: 1.25
   overviewPitchAngle: 45
   overviewTransitionDuration: 6
   projectionTransitionDuration: 0.8
+  revealStartHeight: 5
+  revealStartOutward: 3
+  revealStartFieldOfView: 35
   transitionImage: {fileID: 287809408}
   overviewHeight: 30
 --- !u!114 &1748048902

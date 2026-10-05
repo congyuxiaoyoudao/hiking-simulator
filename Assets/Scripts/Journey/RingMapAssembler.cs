@@ -28,9 +28,9 @@ namespace Hiking.Journey
                     station.cameraRange = new Vector2(i * section, (i + 1) * section);
                     station.stopProgress = (i + settings.StopPosition(i)) / settings.blockCount;
                     station.stopPoint = Anchor(map, station.transform, "StopPoint",
-                        new Vector3(station.stopProgress * map.RouteLength, settings.ringThickness * .5f + .5f, 0));
+                        new Vector3((i + station.stopProgress) * section, settings.ringThickness * .5f + .5f, 0));
                     var marker = Anchor(map, station.transform, "StopLabel",
-                        new Vector3(station.stopProgress * map.RouteLength, 2f, 0));
+                        new Vector3((i + station.stopProgress) * section, 2f, 0));
                     var text = marker.gameObject.AddComponent<TextMesh>();
                     text.text = "STOP " + (i + 1).ToString("00"); text.fontSize = 48;
                     text.characterSize = .04f; text.anchor = TextAnchor.MiddleCenter; text.color = Color.white;
@@ -47,7 +47,8 @@ namespace Hiking.Journey
                     {
                         var obj = new GameObject("Patch_" + (p + 1).ToString("00"));
                         obj.transform.SetParent(station.transform, false);
-                        var mesh = CreateStrip((i + (float)p / patches) * section, section / patches, settings.ringThickness, obj.name);
+                        var mesh = CreateStrip((i + (float)p / patches) * section, section / patches,
+                            settings.ringThickness, settings.StationColor(i), obj.name);
                         obj.AddComponent<MeshFilter>().sharedMesh = mesh;
                         obj.AddComponent<MeshRenderer>().sharedMaterial = settings.pathMaterial;
                         map.RegisterRouteMesh(mesh);
@@ -69,7 +70,7 @@ namespace Hiking.Journey
             map.RegisterRouteObject(point, route);
             return point;
         }
-        static Mesh CreateStrip(float start, float length, float thickness, string name)
+        static Mesh CreateStrip(float start, float length, float thickness, Color color, string name)
         {
             const int segments = 4;
             var vertices = new Vector3[4 * (segments + 1) * 2];
@@ -95,7 +96,7 @@ namespace Hiking.Journey
                 }
             }
             var colors = new Color[vertices.Length];
-            for (int i = 0; i < colors.Length; i++) colors[i] = Color.white;
+            for (int i = 0; i < colors.Length; i++) colors[i] = color;
             var mesh = new Mesh { name = name, vertices = vertices, colors = colors, uv = uv, triangles = triangles };
             mesh.RecalculateNormals(); mesh.RecalculateBounds(); return mesh;
         }

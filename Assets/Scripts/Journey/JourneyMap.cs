@@ -86,9 +86,24 @@ namespace Hiking.Journey
             routeObjects.Add(target); objectCoordinates.Add(routeCoordinates);
             target.position = transform.TransformPoint(RouteGeometry.Point(routeCoordinates, RouteLength, Bend));
         }
+        // One station fills the viewport. At each stop its left edge aligns with the viewport;
+        // between stops it slides exactly one station length while the fox stays at Progress01.
+        public float ViewStartDistance(float progress)
+        {
+            if (stations == null || stations.Length == 0) return 0;
+            float section = RouteLength / stations.Length;
+            if (progress <= stations[0].stopProgress) return 0;
+            for (int i = 0; i < stations.Length - 1; i++)
+                if (progress <= stations[i + 1].stopProgress)
+                    return (i + Mathf.InverseLerp(stations[i].stopProgress,
+                        stations[i + 1].stopProgress, progress)) * section;
+            return (stations.Length - 1) * section;
+        }
+        public float RouteDistanceAtProgress(float progress) =>
+            ViewStartDistance(Mathf.Clamp01(progress)) + Mathf.Clamp01(progress) * RouteLength / stations.Length;
         public Vector3 ProgressPoint(float progress)
         {
-            var route = new Vector3(Mathf.Clamp01(progress) * RouteLength, sourceSettings.ringThickness * .5f + .5f, 0);
+            var route = new Vector3(RouteDistanceAtProgress(progress), sourceSettings.ringThickness * .5f + .5f, 0);
             return transform.TransformPoint(ShowingRing ? RingPoint(route) : RouteGeometry.Point(route, RouteLength, Bend));
         }
 

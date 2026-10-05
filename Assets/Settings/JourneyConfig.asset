@@ -15,12 +15,12 @@ MonoBehaviour:
   normalWaitSeconds: 300
   quickWaitSeconds: 30
   demoWaitSeconds: 3
-  travelSeconds: 10
+  travelSeconds: 3
   stationTravelSeconds: []
-  finishTravelSeconds: 10
+  finishTravelSeconds: 3
   revealSeconds: 2
   localCameraSize: 4.8
-  panoramaCameraSize: 7
+  panoramaCameraSize: 4.55
   wheelDistance: 2
   materials:
   - id: water
@@ -31,4 +31,3 @@ MonoBehaviour:
     displayName: "\u79CD\u5B50"
     color: {r: 0.62, g: 0.82, b: 0.32, a: 1}
     startingCount: 18
-

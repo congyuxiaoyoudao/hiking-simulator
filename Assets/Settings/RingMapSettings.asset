@@ -17,6 +17,13 @@ MonoBehaviour:
   panoramaScale: 1.5
   patchesPerStation: 18
   pathMaterial: {fileID: 2100000, guid: 1383ba9e2843ba34a8acdb9e19110c18, type: 2}
+  stationColors:
+  - {r: 0.93, g: 0.28, b: 0.25, a: 1}
+  - {r: 0.2, g: 0.64, b: 0.93, a: 1}
+  - {r: 0.92, g: 0.7, b: 0.18, a: 1}
+  - {r: 0.5, g: 0.28, b: 0.85, a: 1}
+  - {r: 0.2, g: 0.75, b: 0.5, a: 1}
+  - {r: 0.95, g: 0.38, b: 0.65, a: 1}
   ringThickness: 0.247
   stopPositions:
   - 0.50000006
