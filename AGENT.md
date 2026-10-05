@@ -60,6 +60,7 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
   - `ModeInfo` 补上全程时长，由 `MapProvider.ringSettings.blockCount` 与 `Config.WaitSeconds(mode)` 算出，不写死：普通模式显示「每站等待 300 秒 · 全程等待约 30 分钟」，与 DEV06 验收标准的「六站约 30 分钟」一致。
   - 按钮状态反馈统一。`GameUIController.ApplyButtonFeedback` 在初始化时遍历 Canvas 下所有 Button，按 `UITheme` 里的悬停／按下／禁用倍率设置 ColorBlock；出发按钮与材料按钮在不可用时把文字切到 `theme.textDisabled`。以后新增按钮会自动套用，不用逐个改场景。
   - 面板自带脚本化（Kevin 确认合并走 Prefab 之后做的）：新增 `MaterialBarView`（挂在 `Assets/Prefabs/MaterialBar.prefab` 根上）与 `ModeSelectorView`（挂在新增的 `Assets/Prefabs/StartPanel.prefab` 根上）。两个脚本自己持有面板内部的按钮和文字引用，并在 `Bind` 时用代码注册点击。`GameUIController` 不再持有 `materialButtons` / `modeOptions` / `modeText` / `startButton`，改为 `Initialize` 时用 `GetComponentsInChildren<T>(true)` 找到面板并 `Bind`。这样合并到 GameScene 时只需把 Prefab 拖进 Canvas，内部引用跟着 Prefab 走，不需要重新拖十几个引用。
+  - 番茄钟的计时部分（DEV31）：新增 `FocusSession`（纯计时状态，用真实时间戳推进，不受模拟倍率、镜头预览暂停和帧率波动影响）与 `FocusTimerView`，控件做成 `Assets/Prefabs/FocusTimer.prefab`，常驻在 Canvas 顶层右上角。它不挂在任何面板下面，所以切换开始界面／旅途／全景都不会中断计时。`focusDurationSec`（默认 1500 秒）与 `refreshSec` 放在控件自己的 Inspector 上，暂时没有放进 `JourneyConfig`，避免再动主程的配置文件。
 
 ## UI 开发踩过的坑
 
@@ -74,5 +75,6 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 
 - 待办：数量加减与「准备投放 N 份」（DEV07）、2 秒撤销窗口（DEV10）、当前环境状态提示（DEV11）、番茄钟与补给（DEV31–33）、`JourneyPanel` 整体 Prefab 化（需先确认合并流程）。
 - 待办（续）：`JourneyPanel` 与 `PanoramaPanel` 尚未 Prefab 化；它们里面混有主程的出发按钮、行动点进度条、全景预览按钮，动之前要跟他确认归属。
+- 待办（续）：DEV32／33（专注完成生成待领补给、选择材料领取）需要给 `JourneySession` 增加入库方法才能发放奖励，属于主程的核心数据类，要先确认。另外「状态保存」还不存在，待领补给目前只能存在内存里，DEV32 的「重开不重复生成」暂时无法验收。
 - 待策划拍板：终点全景目前是圆环（`RingMapSettings` + `CameraController` 螺旋俯视），而需求文档 DEV03 / DEV25 / DEV30 写的是「长卷」，DEV30 还要求导出完整长卷图片。直线与圆环共用同一份路线数据，两种形态切换成本不高。
 - 已知问题（未处理）：旅途中上下两栏合计占 33% 屏高（顶部 90 + 底部 150，画布高 727），顶部只放一行状态文字偏胖；两栏是固定像素高度，窗口变矮时占比会上升（1280×600 约 36.5%，1280×400 约 45%），需要给世界区设最小高度，或让两栏随窗口收缩。
