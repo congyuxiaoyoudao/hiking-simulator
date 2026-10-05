@@ -3466,7 +3466,7 @@ MonoBehaviour:
   revealStartOutward: 3
   revealStartFieldOfView: 35
   transitionImage: {fileID: 287809408}
-  overviewHeight: 30
+  overviewHeight: 10
 --- !u!114 &1748048902
 MonoBehaviour:
   m_ObjectHideFlags: 0

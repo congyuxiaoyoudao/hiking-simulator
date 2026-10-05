@@ -17,7 +17,7 @@ MonoBehaviour:
   demoWaitSeconds: 3
   travelSeconds: 3
   stationTravelSeconds: []
-  finishTravelSeconds: 3
+  finishTravelSeconds: 1
   revealSeconds: 2
   localCameraSize: 4.8
   panoramaCameraSize: 4.55

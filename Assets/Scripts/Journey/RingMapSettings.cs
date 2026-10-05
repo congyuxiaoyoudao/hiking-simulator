@@ -19,14 +19,16 @@ namespace Hiking.Journey
             new Color(.92f, .70f, .18f), new Color(.50f, .28f, .85f),
             new Color(.20f, .75f, .50f), new Color(.95f, .38f, .65f)
         };
+        [Tooltip("出生点占一个视窗宽度，使用中性色。终点位于最后一站末尾。")]
+        [InspectorName("起点段颜色")] public Color transitionColor = new Color(.7f, .7f, .66f);
 
         [Header("3D 路线设置")]
         [InspectorName("全景圆环尺寸倍率"), Min(1)] public float panoramaScale = 1.5f;
         [InspectorName("道路厚度"), Range(0.1f, 2f)] public float ringThickness = 0.5f;
 
-        [Tooltip("各站进度段中的驻足时机。0.5 表示走过该站对应的进度段一半；为保持一站视窗与狐狸屏幕进度一致，实际地块内位置会随站序变化。新旅途生效。")]
+        [Tooltip("0.5 使出生点、各站和终点在进度条上等间隔；调低或调高可提前或推迟该站驻足。实际地块内位置会随站序变化。新旅途生效。")]
         [InspectorName("各站驻足进度段比例（0～1）")] public float[] stopPositions = { .5f, .5f, .5f, .5f, .5f, .5f };
-        public float BlockAngle => 360f / blockCount;
+        public float BlockAngle => 360f / (blockCount + 1);
         public float StopPosition(int index) => stopPositions != null && index < stopPositions.Length ? Mathf.Clamp(stopPositions[index], .01f, .99f) : .5f;
         public Color StationColor(int index) => stationColors != null && index < stationColors.Length
             ? stationColors[index] : Color.HSVToRGB(Mathf.Repeat(index * .618034f, 1), .7f, 1);

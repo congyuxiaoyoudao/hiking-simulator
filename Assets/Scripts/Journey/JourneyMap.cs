@@ -13,12 +13,13 @@ namespace Hiking.Journey
         [Min(5)] public float radius = 18;
         public float finishAngle = 360;
         public RingMapSettings sourceSettings;
-        public float BlockAngle => 360f / stations.Length;
+        public float BlockAngle => 360f / (stations.Length + 1);
         [System.NonSerialized] public Mesh[] generatedMeshes;
         public float RouteLength { get; set; }
         public float Bend { get; private set; }
         public int AssembledPatchCount { get; private set; }
         public bool ShowingRing { get; private set; }
+        public float ViewWidth => RouteLength / (stations.Length + 1);
         public float PanoramaScale => Mathf.Max(1, sourceSettings.panoramaScale);
         public Vector3 RingPoint(Vector3 route) => RouteGeometry.Point(route, RouteLength, 1) * PanoramaScale;
         readonly List<Mesh> ringMeshes = new List<Mesh>();
@@ -86,21 +87,23 @@ namespace Hiking.Journey
             routeObjects.Add(target); objectCoordinates.Add(routeCoordinates);
             target.position = transform.TransformPoint(RouteGeometry.Point(routeCoordinates, RouteLength, Bend));
         }
-        // One station fills the viewport. At each stop its left edge aligns with the viewport;
-        // between stops it slides exactly one station length while the fox stays at Progress01.
+        // The spawn and each station occupy one viewport. The camera advances one station
+        // per arrival, then stays on the last station while the fox walks to its far edge.
         public float ViewStartDistance(float progress)
         {
             if (stations == null || stations.Length == 0) return 0;
-            float section = RouteLength / stations.Length;
-            if (progress <= stations[0].stopProgress) return 0;
+            float section = ViewWidth;
+            progress = Mathf.Clamp01(progress);
+            if (progress <= stations[0].stopProgress)
+                return section * Mathf.InverseLerp(0, stations[0].stopProgress, progress);
             for (int i = 0; i < stations.Length - 1; i++)
                 if (progress <= stations[i + 1].stopProgress)
-                    return (i + Mathf.InverseLerp(stations[i].stopProgress,
+                    return (i + 1 + Mathf.InverseLerp(stations[i].stopProgress,
                         stations[i + 1].stopProgress, progress)) * section;
-            return (stations.Length - 1) * section;
+            return stations.Length * section;
         }
         public float RouteDistanceAtProgress(float progress) =>
-            ViewStartDistance(Mathf.Clamp01(progress)) + Mathf.Clamp01(progress) * RouteLength / stations.Length;
+            ViewStartDistance(Mathf.Clamp01(progress)) + Mathf.Clamp01(progress) * ViewWidth;
         public Vector3 ProgressPoint(float progress)
         {
             var route = new Vector3(RouteDistanceAtProgress(progress), sourceSettings.ringThickness * .5f + .5f, 0);

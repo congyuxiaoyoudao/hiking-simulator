@@ -60,7 +60,7 @@ namespace Hiking.Journey
         {
             var map = flow.Map;
             WorldCamera.ResetProjectionMatrix();
-            float width = map.RouteLength / map.stations.Length;
+            float width = map.ViewWidth;
             float progress = flow.Traveler.Progress01;
             float cameraX = map.transform.position.x - map.RouteLength * .5f
                 + map.ViewStartDistance(progress) + width * .5f;

@@ -15,22 +15,28 @@ namespace Hiking.Journey
             try
             {
                 map.sourceSettings = settings;
-                map.RouteLength = Mathf.Max(2, settings.stationLength) * settings.blockCount;
+                // One viewport for the spawn, followed by the stations; the route ends at the last station.
+                map.RouteLength = Mathf.Max(2, settings.stationLength) * (settings.blockCount + 1);
                 map.radius = map.RouteLength / (2 * Mathf.PI);
                 map.stations = new Station[settings.blockCount];
-                float section = map.RouteLength / settings.blockCount;
+                float section = map.ViewWidth;
                 int patches = Mathf.Clamp(settings.patchesPerStation, 1, 24);
+                var startBuffer = new GameObject("StartBuffer").transform;
+                startBuffer.SetParent(root.transform, false);
+                AddPatches(map, startBuffer, 0, section, patches, settings, settings.transitionColor);
                 for (int i = 0; i < map.stations.Length; i++)
                 {
                     var station = new GameObject("Station_" + (i + 1).ToString("00")).AddComponent<Station>();
                     station.transform.SetParent(root.transform, false);
                     station.stationId = "station-" + (i + 1);
-                    station.cameraRange = new Vector2(i * section, (i + 1) * section);
-                    station.stopProgress = (i + settings.StopPosition(i)) / settings.blockCount;
+                    station.cameraRange = new Vector2((i + 1) * section, (i + 2) * section);
+                    // Default .5 spaces spawn, every stop, and finish evenly on the progress bar.
+                    station.stopProgress = (i + .5f + settings.StopPosition(i)) / (settings.blockCount + 1);
+                    float stopDistance = (i + 1) * section + station.stopProgress * section;
                     station.stopPoint = Anchor(map, station.transform, "StopPoint",
-                        new Vector3((i + station.stopProgress) * section, settings.ringThickness * .5f + .5f, 0));
+                        new Vector3(stopDistance, settings.ringThickness * .5f + .5f, 0));
                     var marker = Anchor(map, station.transform, "StopLabel",
-                        new Vector3((i + station.stopProgress) * section, 2f, 0));
+                        new Vector3(stopDistance, 2f, 0));
                     var text = marker.gameObject.AddComponent<TextMesh>();
                     text.text = "STOP " + (i + 1).ToString("00"); text.fontSize = 48;
                     text.characterSize = .04f; text.anchor = TextAnchor.MiddleCenter; text.color = Color.white;
@@ -38,21 +44,13 @@ namespace Hiking.Journey
                     for (int j = 0; j < 3; j++)
                     {
                         var slot = Anchor(map, station.transform, "Slot_" + j,
-                            new Vector3((i + .25f * (j + 1)) * section, .5f, 1));
+                            new Vector3((i + 1 + .25f * (j + 1)) * section, .5f, 1));
                         station.slots[j] = slot.gameObject.AddComponent<PlacementSlot>();
                         station.slots[j].slotId = station.stationId + "/slot-" + j;
                         slot.gameObject.SetActive(false);
                     }
-                    for (int p = 0; p < patches; p++)
-                    {
-                        var obj = new GameObject("Patch_" + (p + 1).ToString("00"));
-                        obj.transform.SetParent(station.transform, false);
-                        var mesh = CreateStrip((i + (float)p / patches) * section, section / patches,
-                            settings.ringThickness, settings.StationColor(i), obj.name);
-                        obj.AddComponent<MeshFilter>().sharedMesh = mesh;
-                        obj.AddComponent<MeshRenderer>().sharedMaterial = settings.pathMaterial;
-                        map.RegisterRouteMesh(mesh);
-                    }
+                    AddPatches(map, station.transform, (i + 1) * section, section,
+                        patches, settings, settings.StationColor(i));
                     map.stations[i] = station;
                 }
                 map.finishPoint = Anchor(map, root.transform, "FinishPoint_100Percent",
@@ -69,6 +67,20 @@ namespace Hiking.Journey
             point.SetParent(parent, false);
             map.RegisterRouteObject(point, route);
             return point;
+        }
+        static void AddPatches(JourneyMap map, Transform parent, float start, float length,
+            int count, RingMapSettings settings, Color color)
+        {
+            for (int p = 0; p < count; p++)
+            {
+                var obj = new GameObject("Patch_" + (p + 1).ToString("00"));
+                obj.transform.SetParent(parent, false);
+                var mesh = CreateStrip(start + p * length / count, length / count,
+                    settings.ringThickness, color, obj.name);
+                obj.AddComponent<MeshFilter>().sharedMesh = mesh;
+                obj.AddComponent<MeshRenderer>().sharedMaterial = settings.pathMaterial;
+                map.RegisterRouteMesh(mesh);
+            }
         }
         static Mesh CreateStrip(float start, float length, float thickness, Color color, string name)
         {
