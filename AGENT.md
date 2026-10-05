@@ -62,6 +62,8 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
   - 面板自带脚本化（Kevin 确认合并走 Prefab 之后做的）：新增 `MaterialBarView`（挂在 `Assets/Prefabs/MaterialBar.prefab` 根上）与 `ModeSelectorView`（挂在新增的 `Assets/Prefabs/StartPanel.prefab` 根上）。两个脚本自己持有面板内部的按钮和文字引用，并在 `Bind` 时用代码注册点击。`GameUIController` 不再持有 `materialButtons` / `modeOptions` / `modeText` / `startButton`，改为 `Initialize` 时用 `GetComponentsInChildren<T>(true)` 找到面板并 `Bind`。这样合并到 GameScene 时只需把 Prefab 拖进 Canvas，内部引用跟着 Prefab 走，不需要重新拖十几个引用。
   - 番茄钟的计时部分（DEV31）：新增 `FocusSession`（纯计时状态，用真实时间戳推进，不受模拟倍率、镜头预览暂停和帧率波动影响）与 `FocusTimerView`，控件做成 `Assets/Prefabs/FocusTimer.prefab`，常驻在 Canvas 顶层右上角。它不挂在任何面板下面，所以切换开始界面／旅途／全景都不会中断计时。`focusDurationSec`（默认 1500 秒）与 `refreshSec` 放在控件自己的 Inspector 上，暂时没有放进 `JourneyConfig`，避免再动主程的配置文件。
   - 当前模式角标（DEV36 的「界面明确标记当前模式」）：新增 `ModeBadgeView`，做成 `Assets/Prefabs/ModeBadge.prefab`，常驻 Canvas 左上角（右上角是番茄钟，两边对称）。开始界面隐藏，创建旅程后显示当前模式；快速模式用 `UITheme.quickModeAccent` 的暖色强调，一眼能看出不是普通模式。开关是组件上的 `modeBadgeVisible`（对应 DEV36 的同名参数）。根节点保持激活、只切换子节点显隐——脚本挂在根上，把自己 `SetActive(false)` 之后就再也醒不过来了。
+  - 投放点本体（DEV08 / 任务大厅 #4）：`RingMapAssembler` 原本只建了三个空物体就 `SetActive(false)`，`PlacementSlot` 声明的 `marker`（SpriteRenderer）与 `label`（TextMesh）全项目没有任何地方赋值，所以高亮和点击都是空的。现在 `BuildSlot` 会为每个投放点建三个部件：轮廓（`marker`，用 `RingMapSettings.slotMarkerSprite`，未配时用运行时生成的白色方块）、数量文字（`label`，TextMesh 默认字体即 `LegacyRuntime`）、命中区（`BoxCollider2D`，0.8×0.9）。`RingMapSettings` 新增 `slotMarkerSprite` 字段，资产里已指向 `Assets/Arts/Prototype/Square.png`。
+  - 投放点击修复（同一个任务）：`PlacementController` 原来用 `ScreenToWorldPoint(..., 10)` 反投影，那是针对"相机在 z=-10 平视"的旧设置写的。现在旅途相机是**俯视 45°、离路面 30 单位**（`CameraController.FrameJourney`），固定距离会把落点算到路面上方约 15 单位处，永远打不中碰撞体。改为 `CameraController.ScreenToPointOnPlane`：用 `ScreenPointToRay` 与投放点所在的 z 平面求交。实测反投影误差 0.0000，物理查询能命中槽位。
 
 ## UI 开发踩过的坑
 
@@ -73,6 +75,9 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 - `Text.font` 无法通过 `manage_components` 设置（序列化字段是 `m_FontData.font`，嵌套路径也不支持）。需要指定字体时，从已有 Label 复制一份再改其余属性。
 - 批量创建 UI、复制样式、清空 Button 上遗留的持久化 `onClick`、以及给 `modeOptions` 这类自定义数组赋值，用 `execute_code` 跑一段编辑器 C# 比逐个对象改要可靠得多（`m_OnClick.m_PersistentCalls.m_Calls` 只能这样清）。改完记得 `EditorUtility.SetDirty` + `MarkSceneDirty`。
 - 按钮监听不要写成持久化 onClick：在 `GameUIController.Initialize` 里用 `onClick.AddListener` 注册，这样公开方法改名或删除时不会在场景里留下丢失的引用。
+- 投放点**不能整体 `SetActive(false)`**：`PlacementSlot.ShowPlacement` 把投放物挂成槽位的子物体，整体关掉会把之前投的材料一起隐藏。所以 `Highlight` 只切换 `marker.enabled` 与 `hitbox.enabled`。
+- 轮廓**必须是子物体**，不能靠缩放槽位本身来调大小：投放物的缩放（0.2）和堆叠偏移是按槽位本地坐标写死的，缩放槽位会把投放物一起缩掉。
+- **屏幕坐标反投影不能用固定距离。** 正交相机下屏幕偏移同样会影响 z，`ScreenToWorldPoint(new Vector3(x, y, 固定值))` 只在"相机平视且平面距离等于该固定值"时成立；相机一旦俯视或改变距离就会算出错误的落点，而且错得很隐蔽——没有报错，只是永远打不中。稳妥做法是 `ScreenPointToRay` 加射线与平面求交。
 
 - 待办：数量加减与「准备投放 N 份」（DEV07）、2 秒撤销窗口（DEV10）、当前环境状态提示（DEV11）、番茄钟与补给（DEV31–33）、`JourneyPanel` 整体 Prefab 化（需先确认合并流程）。
 - 待办（续）：`JourneyPanel` 与 `PanoramaPanel` 尚未 Prefab 化；它们里面混有主程的出发按钮、行动点进度条、全景预览按钮，动之前要跟他确认归属。

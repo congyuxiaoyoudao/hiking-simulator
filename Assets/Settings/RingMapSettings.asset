@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.RingMapSettings
   blockCount: 6
   stationLength: 6
-  panoramaScale: 1.5
   patchesPerStation: 18
   pathMaterial: {fileID: 2100000, guid: 1383ba9e2843ba34a8acdb9e19110c18, type: 2}
+  slotMarkerSprite: {fileID: 21300000, guid: 886e151b74b94894295202599bca68b3, type: 3}
   stationColors:
   - {r: 0.93, g: 0.28, b: 0.25, a: 1}
   - {r: 0.2, g: 0.64, b: 0.93, a: 1}
@@ -25,6 +25,7 @@ MonoBehaviour:
   - {r: 0.2, g: 0.75, b: 0.5, a: 1}
   - {r: 0.95, g: 0.38, b: 0.65, a: 1}
   transitionColor: {r: 0.7, g: 0.7, b: 0.66, a: 1}
+  panoramaScale: 1.5
   ringThickness: 0.247
   stopPositions:
   - 0.50000006
@@ -33,4 +34,3 @@ MonoBehaviour:
   - 0.5
   - 0.5
   - 0.5
-

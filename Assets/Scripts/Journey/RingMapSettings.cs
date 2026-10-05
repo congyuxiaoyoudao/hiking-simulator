@@ -12,6 +12,8 @@ namespace Hiking.Journey
         [InspectorName("每站路线长度"), Min(2)] public float stationLength = 6;
         [InspectorName("每站 Patch 数量"), Range(1, 24)] public int patchesPerStation = 6;
         public Material pathMaterial;
+        [Tooltip("投放点的轮廓图。留空时用运行时生成的白色方块，方便先跑通流程。")]
+        [InspectorName("投放点轮廓")] public Sprite slotMarkerSprite;
         [Tooltip("直线旅途与全景圆环共用的站点占位颜色。")]
         [InspectorName("各站占位颜色")] public Color[] stationColors =
         {

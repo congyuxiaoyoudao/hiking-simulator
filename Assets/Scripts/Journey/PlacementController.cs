@@ -36,7 +36,12 @@ namespace Hiking.Journey
             if (mouse == null || SelectedMaterialId == null || !mouse.leftButton.wasPressedThisFrame) return;
             var position = mouse.position.ReadValue();
             if (PointerUtility.OverUI(position)) return;
-            var world = flow.Camera.WorldCamera.ScreenToWorldPoint(new Vector3(position.x, position.y, 10));
+            var station = flow.Map != null && flow.Map.stations != null
+                ? flow.Map.stations[flow.Session.StationIndex] : null;
+            if (station == null || station.slots == null || station.slots.Length == 0) return;
+            // 三个投放点在同一 z 平面上，按这个平面求交才能得到准确落点。
+            float planeZ = station.slots[0] != null ? station.slots[0].transform.position.z : 0f;
+            var world = flow.Camera.ScreenToPointOnPlane(position, planeZ);
             var hit = Physics2D.OverlapPoint(world);
             ApplyPlacement(hit != null ? hit.GetComponent<PlacementSlot>() : null);
         }

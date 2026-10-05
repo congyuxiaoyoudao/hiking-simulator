@@ -36,6 +36,18 @@ namespace Hiking.Journey
         {
             flow = owner; WorldCamera.orthographic = true;
         }
+        // 屏幕坐标 → 指定 z 平面上的世界坐标。
+        // 不能沿用固定距离的 ScreenToWorldPoint：旅途相机是俯视 45°、离路面 30 单位的正交相机，
+        // 写死 z=10 会把落点算到路面上方十几单位处；而且正交相机下屏幕偏移也会影响 z，
+        // 必须用射线与平面求交才准确。
+        public Vector3 ScreenToPointOnPlane(Vector2 screen, float planeZ)
+        {
+            var ray = WorldCamera.ScreenPointToRay(screen);
+            if (Mathf.Abs(ray.direction.z) < .0001f)
+                return WorldCamera.ScreenToWorldPoint(new Vector3(screen.x, screen.y, 10f));
+            float distance = (planeZ - ray.origin.z) / ray.direction.z;
+            return ray.origin + ray.direction * distance;
+        }
         public void ResetCamera()
         {
             if (reveal != null) StopCoroutine(reveal);

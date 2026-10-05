@@ -7,11 +7,19 @@ namespace Hiking.Journey
         public string slotId;
         public SpriteRenderer marker;
         public TextMesh label;
+        public Collider2D hitbox;
         int count;
 
+        // 只切换轮廓与命中区，不整个 SetActive：投放物是本槽位的子物体，
+        // 整体关掉会把之前投在这个位置的材料一起隐藏。
         public void Highlight(bool active, Color color)
         {
-            if (marker != null) SetTint(marker, active ? color : new Color(.3f, .42f, .4f, .55f));
+            if (marker != null)
+            {
+                marker.enabled = active;
+                if (active) SetTint(marker, color);
+            }
+            if (hitbox != null) hitbox.enabled = active;
         }
 
         public void ShowPlacement(MaterialDefinition material, int quantity)
@@ -24,8 +32,11 @@ namespace Hiking.Journey
             token.transform.localPosition = new Vector3((count - 1) % 4 * .23f - .35f, .35f + ((count - 1) / 4 % 3) * .2f, -.1f);
             token.transform.localScale = Vector3.one * .2f;
             var renderer = token.AddComponent<SpriteRenderer>();
-            renderer.sprite = marker.sprite;
-            renderer.sharedMaterial = marker.sharedMaterial;
+            if (marker != null)
+            {
+                renderer.sprite = marker.sprite;
+                renderer.sharedMaterial = marker.sharedMaterial;
+            }
             SetTint(renderer, material.color);
             renderer.sortingOrder = 6;
         }

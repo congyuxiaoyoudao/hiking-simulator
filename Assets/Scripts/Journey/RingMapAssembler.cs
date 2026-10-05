@@ -45,9 +45,7 @@ namespace Hiking.Journey
                     {
                         var slot = Anchor(map, station.transform, "Slot_" + j,
                             new Vector3((i + 1 + .25f * (j + 1)) * section, .5f, 1));
-                        station.slots[j] = slot.gameObject.AddComponent<PlacementSlot>();
-                        station.slots[j].slotId = station.stationId + "/slot-" + j;
-                        slot.gameObject.SetActive(false);
+                        station.slots[j] = BuildSlot(slot, station.stationId + "/slot-" + j, settings);
                     }
                     AddPatches(map, station.transform, (i + 1) * section, section,
                         patches, settings, settings.StationColor(i));
@@ -67,6 +65,54 @@ namespace Hiking.Journey
             point.SetParent(parent, false);
             map.RegisterRouteObject(point, route);
             return point;
+        }
+        // 投放点由三个部件组成：轮廓、数量文字、命中区。
+        // 轮廓和命中区默认关掉，由 PlacementSlot.Highlight 在选中材料时打开；
+        // 注意不能对槽位整体 SetActive(false)——投放物是它的子物体，会被一起隐藏。
+        static PlacementSlot BuildSlot(Transform anchor, string id, RingMapSettings settings)
+        {
+            var slot = anchor.gameObject.AddComponent<PlacementSlot>();
+            slot.slotId = id;
+
+            var markerObject = new GameObject("Marker");
+            markerObject.transform.SetParent(anchor, false);
+            markerObject.transform.localScale = Vector3.one * .6f;
+            var marker = markerObject.AddComponent<SpriteRenderer>();
+            marker.sprite = settings.slotMarkerSprite != null ? settings.slotMarkerSprite : WhiteSprite();
+            marker.sortingOrder = 5;
+            marker.enabled = false;
+            slot.marker = marker;
+
+            var labelObject = new GameObject("Count");
+            labelObject.transform.SetParent(anchor, false);
+            labelObject.transform.localPosition = new Vector3(0, .45f, -.05f);
+            var label = labelObject.AddComponent<TextMesh>();
+            label.fontSize = 48;
+            label.characterSize = .02f;
+            label.anchor = TextAnchor.MiddleCenter;
+            label.color = Color.white;
+            slot.label = label;
+
+            var hitbox = anchor.gameObject.AddComponent<BoxCollider2D>();
+            hitbox.size = new Vector2(.8f, .9f);
+            hitbox.enabled = false;
+            slot.hitbox = hitbox;
+            return slot;
+        }
+        static Sprite whiteSprite;
+        // 没有配轮廓图时的兜底：2x2 纯白贴图、每单位 2 像素，正好是 1x1 世界单位。
+        static Sprite WhiteSprite()
+        {
+            if (whiteSprite != null) return whiteSprite;
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            texture.name = "SlotMarkerTexture";
+            var pixels = new Color[4];
+            for (int i = 0; i < pixels.Length; i++) pixels[i] = Color.white;
+            texture.SetPixels(pixels);
+            texture.Apply();
+            whiteSprite = Sprite.Create(texture, new Rect(0, 0, 2, 2), new Vector2(.5f, .5f), 2f);
+            whiteSprite.name = "SlotMarker";
+            return whiteSprite;
         }
         static void AddPatches(JourneyMap map, Transform parent, float start, float length,
             int count, RingMapSettings settings, Color color)
