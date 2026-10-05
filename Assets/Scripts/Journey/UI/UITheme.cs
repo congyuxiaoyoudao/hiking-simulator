@@ -16,6 +16,8 @@ namespace Hiking.Journey
         [Header("模式选择")]
         public Color modeNormal = new Color(.17f, .29f, .31f);
         public Color modeSelected = new Color(.28f, .49f, .43f);
+        [Tooltip("快速模式角标的强调色，让玩家一眼看出当前不是普通模式。")]
+        public Color quickModeAccent = new Color(1f, .78f, .35f);
 
         [Header("提示条")]
         public Color toastBackground = new Color(.07f, .14f, .17f, .78f);

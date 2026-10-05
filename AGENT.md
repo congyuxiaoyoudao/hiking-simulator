@@ -61,6 +61,7 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
   - 按钮状态反馈统一。`GameUIController.ApplyButtonFeedback` 在初始化时遍历 Canvas 下所有 Button，按 `UITheme` 里的悬停／按下／禁用倍率设置 ColorBlock；出发按钮与材料按钮在不可用时把文字切到 `theme.textDisabled`。以后新增按钮会自动套用，不用逐个改场景。
   - 面板自带脚本化（Kevin 确认合并走 Prefab 之后做的）：新增 `MaterialBarView`（挂在 `Assets/Prefabs/MaterialBar.prefab` 根上）与 `ModeSelectorView`（挂在新增的 `Assets/Prefabs/StartPanel.prefab` 根上）。两个脚本自己持有面板内部的按钮和文字引用，并在 `Bind` 时用代码注册点击。`GameUIController` 不再持有 `materialButtons` / `modeOptions` / `modeText` / `startButton`，改为 `Initialize` 时用 `GetComponentsInChildren<T>(true)` 找到面板并 `Bind`。这样合并到 GameScene 时只需把 Prefab 拖进 Canvas，内部引用跟着 Prefab 走，不需要重新拖十几个引用。
   - 番茄钟的计时部分（DEV31）：新增 `FocusSession`（纯计时状态，用真实时间戳推进，不受模拟倍率、镜头预览暂停和帧率波动影响）与 `FocusTimerView`，控件做成 `Assets/Prefabs/FocusTimer.prefab`，常驻在 Canvas 顶层右上角。它不挂在任何面板下面，所以切换开始界面／旅途／全景都不会中断计时。`focusDurationSec`（默认 1500 秒）与 `refreshSec` 放在控件自己的 Inspector 上，暂时没有放进 `JourneyConfig`，避免再动主程的配置文件。
+  - 当前模式角标（DEV36 的「界面明确标记当前模式」）：新增 `ModeBadgeView`，做成 `Assets/Prefabs/ModeBadge.prefab`，常驻 Canvas 左上角（右上角是番茄钟，两边对称）。开始界面隐藏，创建旅程后显示当前模式；快速模式用 `UITheme.quickModeAccent` 的暖色强调，一眼能看出不是普通模式。开关是组件上的 `modeBadgeVisible`（对应 DEV36 的同名参数）。根节点保持激活、只切换子节点显隐——脚本挂在根上，把自己 `SetActive(false)` 之后就再也醒不过来了。
 
 ## UI 开发踩过的坑
 

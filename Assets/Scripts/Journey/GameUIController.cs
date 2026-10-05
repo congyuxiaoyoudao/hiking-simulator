@@ -34,6 +34,7 @@ namespace Hiking.Journey
             // 合并到别的场景时不需要重新拖引用。
             foreach (var view in GetComponentsInChildren<MaterialBarView>(true)) view.Bind(flow);
             foreach (var view in GetComponentsInChildren<ModeSelectorView>(true)) view.Bind(flow);
+            foreach (var view in GetComponentsInChildren<ModeBadgeView>(true)) view.Bind(flow);
             ApplyButtonFeedback();
         }
 
