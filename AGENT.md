@@ -64,6 +64,7 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
   - 当前模式角标（DEV36 的「界面明确标记当前模式」）：新增 `ModeBadgeView`，做成 `Assets/Prefabs/ModeBadge.prefab`，常驻 Canvas 左上角（右上角是番茄钟，两边对称）。开始界面隐藏，创建旅程后显示当前模式；快速模式用 `UITheme.quickModeAccent` 的暖色强调，一眼能看出不是普通模式。开关是组件上的 `modeBadgeVisible`（对应 DEV36 的同名参数）。根节点保持激活、只切换子节点显隐——脚本挂在根上，把自己 `SetActive(false)` 之后就再也醒不过来了。
   - 投放点本体（DEV08 / 任务大厅 #4）：`RingMapAssembler` 原本只建了三个空物体就 `SetActive(false)`，`PlacementSlot` 声明的 `marker`（SpriteRenderer）与 `label`（TextMesh）全项目没有任何地方赋值，所以高亮和点击都是空的。现在 `BuildSlot` 会为每个投放点建三个部件：轮廓（`marker`，用 `RingMapSettings.slotMarkerSprite`，未配时用运行时生成的白色方块）、数量文字（`label`，TextMesh 默认字体即 `LegacyRuntime`）、命中区（`BoxCollider2D`，0.8×0.9）。`RingMapSettings` 新增 `slotMarkerSprite` 字段，资产里已指向 `Assets/Arts/Prototype/Square.png`。
   - 投放点击修复（同一个任务）：`PlacementController` 原来用 `ScreenToWorldPoint(..., 10)` 反投影，那是针对"相机在 z=-10 平视"的旧设置写的。现在旅途相机是**俯视 45°、离路面 30 单位**（`CameraController.FrameJourney`），固定距离会把落点算到路面上方约 15 单位处，永远打不中碰撞体。改为 `CameraController.ScreenToPointOnPlane`：用 `ScreenPointToRay` 与投放点所在的 z 平面求交。实测反投影误差 0.0000，物理查询能命中槽位。
+  - 投放份数（DEV07）：`PlacementController` 新增 `SelectedQuantity` 与 `AdjustQuantity`，上限取 `maxPlaceCount`（默认 5）与库存的较小值；`ApplyPlacement` 按份数提交并把份数传给 `ShowPlacement`，提示变成"已投放：水 ×3"。材料栏 Prefab 增加 `Minus` / `Quantity` / `Plus` 三个控件，放在材料按钮正下方那一行（控制栏 y=23，与投放提示同一行但左右错开），由 `MaterialBarView` 驱动。**每次提交成功后份数回到 1**（避免下一次点击误投一大堆），材料选择本身保留（DEV09）。这一条"提交后是否复位"文档没写，是提案，需要策划确认。
 
 ## UI 开发踩过的坑
 

@@ -18,11 +18,17 @@ namespace Hiking.Journey
         }
 
         public Entry[] entries;
+        [Header("投放份数")]
+        public Button minus;
+        public Button plus;
+        public Text quantity;
         GameFlowController flow;
 
         public void Bind(GameFlowController owner)
         {
             flow = owner;
+            if (minus != null) minus.onClick.AddListener(() => flow.Placement.AdjustQuantity(-1));
+            if (plus != null) plus.onClick.AddListener(() => flow.Placement.AdjustQuantity(1));
             if (entries == null) return;
             foreach (var entry in entries)
             {
@@ -63,6 +69,13 @@ namespace Hiking.Journey
                         ? (selected ? theme.materialSelected : theme.materialNormal)
                         : theme.materialEmpty;
             }
+
+            // 准备投放的份数：没选材料时显示占位符，加减按钮跟着可用性变灰（DEV07）。
+            var placement = flow.Placement;
+            bool chosen = placement.SelectedMaterialId != null;
+            if (quantity != null) quantity.text = chosen ? placement.SelectedQuantity.ToString() : "–";
+            if (minus != null) minus.interactable = chosen && placement.SelectedQuantity > 1;
+            if (plus != null) plus.interactable = chosen && placement.SelectedQuantity < placement.QuantityLimit();
         }
     }
 }
