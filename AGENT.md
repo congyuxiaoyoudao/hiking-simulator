@@ -59,9 +59,11 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
   - 开始界面的模式选择由「点一下循环切换」改为三个显式按钮 `Mode_Normal` / `Mode_Quick` / `Mode_Demo`，选中项高亮，下方 `ModeInfo` 显示当前等待时长，对应 DEV36。同时把 `GameUIController.mode` 的默认值从 `Demo` 改为 `Normal`——此前玩家不点按钮直接开始，进的是每站 3 秒的演示模式，而不是 300 秒的普通模式。
   - `ModeInfo` 补上全程时长，由 `MapProvider.ringSettings.blockCount` 与 `Config.WaitSeconds(mode)` 算出，不写死：普通模式显示「每站等待 300 秒 · 全程等待约 30 分钟」，与 DEV06 验收标准的「六站约 30 分钟」一致。
   - 按钮状态反馈统一。`GameUIController.ApplyButtonFeedback` 在初始化时遍历 Canvas 下所有 Button，按 `UITheme` 里的悬停／按下／禁用倍率设置 ColorBlock；出发按钮与材料按钮在不可用时把文字切到 `theme.textDisabled`。以后新增按钮会自动套用，不用逐个改场景。
+  - 面板自带脚本化（Kevin 确认合并走 Prefab 之后做的）：新增 `MaterialBarView`（挂在 `Assets/Prefabs/MaterialBar.prefab` 根上）与 `ModeSelectorView`（挂在新增的 `Assets/Prefabs/StartPanel.prefab` 根上）。两个脚本自己持有面板内部的按钮和文字引用，并在 `Bind` 时用代码注册点击。`GameUIController` 不再持有 `materialButtons` / `modeOptions` / `modeText` / `startButton`，改为 `Initialize` 时用 `GetComponentsInChildren<T>(true)` 找到面板并 `Bind`。这样合并到 GameScene 时只需把 Prefab 拖进 Canvas，内部引用跟着 Prefab 走，不需要重新拖十几个引用。
 
 ## UI 开发踩过的坑
 
+- **Prefab 资产保存不了对场景对象的引用。** 把 MaterialBar 存成 Prefab 之后，两个材料按钮上原本指向场景里 `GameUIController.SelectMaterial` 的持久化 `onClick` 全部变成 `m_Target: {fileID: 0}`，点击直接失效。表现形式很隐蔽：Inspector 里方法名还在，只是目标为空。**解决办法是点击一律在 Prefab 自己的脚本里用 `onClick.AddListener` 注册**，不要跨 Prefab 边界写持久化引用。同类问题也存在于从场景对象移进 Prefab 的 `StartButton`（已一并处理）。
 - 新脚本必须放在 `Assets/Scripts/Journey/` 之内。该目录有 `Hiking.Journey.asmdef`，放到外面的脚本会编译进 `Assembly-CSharp`，`Hiking.Journey` 程序集引用不到，报 CS0234 / CS0246。
 - 通过 MCP 新建的 UI 对象默认 `localScale` 是 1.5135（用于抵消画布缩放），必须手动改回 1，否则比同层其它 UI 大 1.5 倍。
 - `manage_gameobject` 找不到未激活层级里的对象。修改 `JourneyPanel` 下的内容前要先激活该面板，改完还原。
@@ -71,5 +73,6 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 - 按钮监听不要写成持久化 onClick：在 `GameUIController.Initialize` 里用 `onClick.AddListener` 注册，这样公开方法改名或删除时不会在场景里留下丢失的引用。
 
 - 待办：数量加减与「准备投放 N 份」（DEV07）、2 秒撤销窗口（DEV10）、当前环境状态提示（DEV11）、番茄钟与补给（DEV31–33）、`JourneyPanel` 整体 Prefab 化（需先确认合并流程）。
+- 待办（续）：`JourneyPanel` 与 `PanoramaPanel` 尚未 Prefab 化；它们里面混有主程的出发按钮、行动点进度条、全景预览按钮，动之前要跟他确认归属。
 - 待策划拍板：终点全景目前是圆环（`RingMapSettings` + `CameraController` 螺旋俯视），而需求文档 DEV03 / DEV25 / DEV30 写的是「长卷」，DEV30 还要求导出完整长卷图片。直线与圆环共用同一份路线数据，两种形态切换成本不高。
 - 已知问题（未处理）：旅途中上下两栏合计占 33% 屏高（顶部 90 + 底部 150，画布高 727），顶部只放一行状态文字偏胖；两栏是固定像素高度，窗口变矮时占比会上升（1280×600 约 36.5%，1280×400 约 45%），需要给世界区设最小高度，或让两栏随窗口收缩。

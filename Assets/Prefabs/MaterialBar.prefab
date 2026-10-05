@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3803159932229821555}
+  - component: {fileID: 2215735631167856068}
   m_Layer: 0
   m_Name: MaterialBar
   m_TagString: Untagged
@@ -37,6 +38,25 @@ RectTransform:
   m_AnchoredPosition: {x: -330, y: 18}
   m_SizeDelta: {x: 480, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &2215735631167856068
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887496907486226846}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 882edb4b144132849aeb25e01d8eb612, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.MaterialBarView
+  entries:
+  - materialId: water
+    button: {fileID: 6064388829645873959}
+    label: {fileID: 2913336535247744850}
+  - materialId: seed
+    button: {fileID: 1239303653888156443}
+    label: {fileID: 8158006598155798543}
 --- !u!1 &7519241403021047253
 GameObject:
   m_ObjectHideFlags: 0
@@ -157,19 +177,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 6559631276257388928}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: Hiking.Journey.GameUIController, Hiking.Journey
-        m_MethodName: SelectMaterial
-        m_Mode: 5
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: seed
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!1 &8051338075482277658
 GameObject:
   m_ObjectHideFlags: 0
@@ -448,16 +456,4 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 4735414765756461566}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: Hiking.Journey.GameUIController, Hiking.Journey
-        m_MethodName: SelectMaterial
-        m_Mode: 5
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: water
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
