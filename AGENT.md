@@ -47,3 +47,29 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 - 保留场景、配置及脚本的 GUID 和现有按钮绑定；不要用早期资源或旧方案覆盖用户的新修改。
 - 主 Unity 编辑器可能正在运行。编译与 PlayMode 验证使用 `.utmp/JourneyValidation` 隔离项目，不打断主编辑器；不要恢复用户已删除的旧测试目录。
 - 最近 8 项隔离 PlayMode 测试通过，结果为 `Logs/equal-progress-tests.xml`。覆盖等间隔进度、起点中性色、一站视窗、各站驻足时的完整站点配色、狐狸屏幕进度、站间等距滑移、末站内走向终点、预览暂停恢复及全景相机衔接。动画观感仍需在正常 Game 视窗确认。
+
+## 本分支开发任务（crm/ui · UI/UX）
+
+- 分支 `crm/ui`，开发场景 `Assets/Scenes/crm-DevScene.unity`（由 GameScene 复制）。
+- 2026/10/05 进度：
+  - 修复反馈链路。`GameUIController.toast` 原本为 null 且场景中不存在 Toast 对象，`Notify` 全部静默返回，投放、到站、材料不足等提示一条都不会显示。已新增 `Canvas/Toast`（Image + Label，默认隐藏），接线 `toastRoot` / `toast`，提示时长改为可调 `toastSec`（默认 2.5 秒），对应 DEV12。
+  - 材料卡。库存为 0 时按钮显示 `theme.materialEmpty` 暗色，选中后提示行显示「该材料库存不足」，按钮仍可选中以便查看，对应 DEV07 / DEV12。
+  - 样式表 `Assets/Scripts/Journey/UI/UITheme.cs`。材料按钮配色与提示条背景／文字配色、`toastSec` 集中到 `GameUIController.theme`，运行时由脚本写入；字号与布局仍在 Canvas 中编辑。对应 DEV40 的参数集中要求。
+  - 材料栏抽成 Prefab `Assets/Prefabs/MaterialBar.prefab`，承载 `Material_water` / `Material_seed`，是 `Canvas/JourneyPanel/Controls/MaterialBar` 的实例。抽取前后两个按钮的世界坐标完全一致，`GameUIController.materialButtons` 的引用未变。以后材料栏的改动只影响该 Prefab，不再直接改场景，`JourneyPanel` 其余部分（出发按钮、行动点进度条、全景预览按钮）保持原样未动。
+  - 开始界面的模式选择由「点一下循环切换」改为三个显式按钮 `Mode_Normal` / `Mode_Quick` / `Mode_Demo`，选中项高亮，下方 `ModeInfo` 显示当前等待时长，对应 DEV36。同时把 `GameUIController.mode` 的默认值从 `Demo` 改为 `Normal`——此前玩家不点按钮直接开始，进的是每站 3 秒的演示模式，而不是 300 秒的普通模式。
+  - `ModeInfo` 补上全程时长，由 `MapProvider.ringSettings.blockCount` 与 `Config.WaitSeconds(mode)` 算出，不写死：普通模式显示「每站等待 300 秒 · 全程等待约 30 分钟」，与 DEV06 验收标准的「六站约 30 分钟」一致。
+  - 按钮状态反馈统一。`GameUIController.ApplyButtonFeedback` 在初始化时遍历 Canvas 下所有 Button，按 `UITheme` 里的悬停／按下／禁用倍率设置 ColorBlock；出发按钮与材料按钮在不可用时把文字切到 `theme.textDisabled`。以后新增按钮会自动套用，不用逐个改场景。
+
+## UI 开发踩过的坑
+
+- 新脚本必须放在 `Assets/Scripts/Journey/` 之内。该目录有 `Hiking.Journey.asmdef`，放到外面的脚本会编译进 `Assembly-CSharp`，`Hiking.Journey` 程序集引用不到，报 CS0234 / CS0246。
+- 通过 MCP 新建的 UI 对象默认 `localScale` 是 1.5135（用于抵消画布缩放），必须手动改回 1，否则比同层其它 UI 大 1.5 倍。
+- `manage_gameobject` 找不到未激活层级里的对象。修改 `JourneyPanel` 下的内容前要先激活该面板，改完还原。
+- Screen Space - Overlay 的界面无法用常规 MCP 截图拿到（走相机渲染会排除 Overlay 层，Scene View 又不渲染 Overlay 的文字）。可行做法：临时把 Canvas 切到 `ScreenSpaceCamera`、挂一个临时相机渲染到 RenderTexture 存 PNG，用完在 `finally` 里还原，且不要保存场景。
+- `Text.font` 无法通过 `manage_components` 设置（序列化字段是 `m_FontData.font`，嵌套路径也不支持）。需要指定字体时，从已有 Label 复制一份再改其余属性。
+- 批量创建 UI、复制样式、清空 Button 上遗留的持久化 `onClick`、以及给 `modeOptions` 这类自定义数组赋值，用 `execute_code` 跑一段编辑器 C# 比逐个对象改要可靠得多（`m_OnClick.m_PersistentCalls.m_Calls` 只能这样清）。改完记得 `EditorUtility.SetDirty` + `MarkSceneDirty`。
+- 按钮监听不要写成持久化 onClick：在 `GameUIController.Initialize` 里用 `onClick.AddListener` 注册，这样公开方法改名或删除时不会在场景里留下丢失的引用。
+
+- 待办：数量加减与「准备投放 N 份」（DEV07）、2 秒撤销窗口（DEV10）、当前环境状态提示（DEV11）、番茄钟与补给（DEV31–33）、`JourneyPanel` 整体 Prefab 化（需先确认合并流程）。
+- 待策划拍板：终点全景目前是圆环（`RingMapSettings` + `CameraController` 螺旋俯视），而需求文档 DEV03 / DEV25 / DEV30 写的是「长卷」，DEV30 还要求导出完整长卷图片。直线与圆环共用同一份路线数据，两种形态切换成本不高。
+- 已知问题（未处理）：旅途中上下两栏合计占 33% 屏高（顶部 90 + 底部 150，画布高 727），顶部只放一行状态文字偏胖；两栏是固定像素高度，窗口变矮时占比会上升（1280×600 约 36.5%，1280×400 约 45%），需要给世界区设最小高度，或让两栏随窗口收缩。
