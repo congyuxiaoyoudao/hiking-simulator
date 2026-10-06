@@ -8,8 +8,10 @@ namespace Hiking.Journey
     {
         [Header("直线站点地图（新旅途生效）")]
         [InspectorName("站点数量"), Min(1)] public int blockCount = 6;
-        [InspectorName("每站路线长度"), Min(2)] public float stationLength = 15;
-        [InspectorName("每站地块数量"), Min(3)] public int patchesPerStation = 15;
+        [InspectorName("每站路线长度"), Min(2)] public float stationLength = 12;
+        public const int TilesPerStation = 12;
+        [HideInInspector] public int patchesPerStation = TilesPerStation;
+        [InspectorName("过渡地块颜色")] public Color transitionTileColor = new Color(.4f, .47f, .58f);
         public Material pathMaterial;
         [Header("随机站点主题颜色")]
         [InspectorName("雪山")] public Color snowColor = Color.white;
@@ -28,7 +30,7 @@ namespace Hiking.Journey
         void OnValidate()
         {
             blockCount = Mathf.Max(1, blockCount);
-            patchesPerStation = Mathf.Max(3, patchesPerStation);
+            patchesPerStation = TilesPerStation;
             stationLength = Mathf.Max(2, stationLength);
         }
     }

@@ -19,7 +19,7 @@ namespace Hiking.Journey
                 map.radius = map.RouteLength / (2 * Mathf.PI);
                 map.stations = new Station[settings.blockCount];
                 float section = map.RouteLength / settings.blockCount;
-                int patches = Mathf.Max(3, settings.patchesPerStation);
+                int patches = RingMapSettings.TilesPerStation;
                 for (int i = 0; i < map.stations.Length; i++)
                 {
                     var station = new GameObject("Station_" + (i + 1).ToString("00")).AddComponent<Station>();
@@ -51,7 +51,7 @@ namespace Hiking.Journey
                     station.slots = new PlacementSlot[3];
                     for (int j = 0; j < 3; j++)
                     {
-                        int tile = Mathf.FloorToInt((j + .5f) * patches / 3);
+                        int tile = j * 4 + 1;
                         var slot = Anchor(map, station.transform, "Slot_" + j,
                             new Vector3(station.TileCenter(tile), settings.ringThickness * .5f + .025f, 0));
                         station.slots[j] = slot.gameObject.AddComponent<PlacementSlot>();
@@ -85,7 +85,7 @@ namespace Hiking.Journey
                 var obj = new GameObject("Patch_" + (p + 1).ToString("00"));
                 obj.transform.SetParent(parent, false);
                 var mesh = CreateStrip(start + p * length / count + length / count * .015f, length / count * .97f,
-                    settings.ringThickness, color, obj.name);
+                    settings.ringThickness, Station.IsTransitionTile(p) ? settings.transitionTileColor : color, obj.name);
                 obj.AddComponent<MeshFilter>().sharedMesh = mesh;
                 obj.AddComponent<MeshRenderer>().sharedMaterial = settings.pathMaterial;
                 map.RegisterRouteMesh(mesh);

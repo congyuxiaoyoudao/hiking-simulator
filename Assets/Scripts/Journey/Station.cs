@@ -9,6 +9,7 @@ namespace Hiking.Journey
         public string stationId;
         public StationTheme theme;
         public int tileCount;
+        public static bool IsTransitionTile(int tile) => tile % 4 == 3;
         int[] moisture;
         TextMesh[] moistureLabels;
         public void InitializeMoisture(int initial)

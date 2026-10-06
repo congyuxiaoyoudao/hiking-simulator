@@ -1,47 +1,52 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-
 namespace Hiking.Journey
 {
     public class GameUIController : MonoBehaviour
     {
         GameFlowController flow;
-        [Header("界面面板：布局直接在 Canvas 中编辑")]
         public GameObject startPanel, journeyPanel, panoramaPanel;
-        [Header("站点末尾确认")]
-        public GameObject exitPrompt;
-        public Text exitPromptText;
-        public Button confirmExit, cancelExit;
-        public bool ExitPromptOpen => exitPrompt != null && exitPrompt.activeSelf;
+        // Retain old serialized references while the scene migrates to automatic travel.
+        [HideInInspector] public GameObject exitPrompt;
+        [HideInInspector] public Text exitPromptText;
+        [HideInInspector] public Button confirmExit, cancelExit;
+        public bool ExitPromptOpen => false;
         public void CloseExitPrompt() { if (exitPrompt != null) exitPrompt.SetActive(false); }
-        public void ShowExitPrompt()
-        {
-            if (PlacementPromptOpen || flow == null || !flow.AtStationEnd || flow.IsPreviewing || flow.Session.Phase != JourneyPhase.AtStation) return;
-            if (exitPrompt != null) exitPrompt.SetActive(true);
-        }
-        [Header("投放确认")]
+        [Header("是否投放")]
+        public GameObject placementDecision;
+        public Text placementDecisionText;
+        public Button choosePlacement, skipPlacement;
+        [Header("材料与数量")]
         public GameObject placementPrompt;
         public Text placementPromptText;
-        public Button confirmPlacement, cancelPlacement;
+        public Button confirmPlacement, cancelPlacement, quantityMinus, quantityPlus;
+        public InputField quantityInput;
         public MaterialButton[] placementMaterialButtons;
         public bool PlacementPromptOpen => placementPrompt != null && placementPrompt.activeSelf;
-        public bool IsModalOpen => ExitPromptOpen || PlacementPromptOpen;
+        public bool PlacementDecisionOpen => placementDecision != null && placementDecision.activeSelf;
+        public bool IsModalOpen => PlacementDecisionOpen || PlacementPromptOpen;
+        public void ShowPlacementDecision()
+        {
+            if (!flow.Placement.IsAtSlot(flow.Placement.PendingSlot)) return;
+            placementPrompt.SetActive(false); placementDecision.SetActive(true);
+        }
         public void ShowPlacementPrompt()
         {
-            if (!flow.Placement.IsAtSlot(flow.Placement.PendingSlot) || ExitPromptOpen) return;
-            if (placementPrompt != null) placementPrompt.SetActive(true);
+            if (!flow.Placement.IsAtSlot(flow.Placement.PendingSlot)) return;
+            placementDecision.SetActive(false); placementPrompt.SetActive(true);
         }
-        public void ClosePlacementPrompt(bool offerExit = true)
+        public void ClosePlacementPrompt(bool completeVisit = true)
         {
             if (placementPrompt != null) placementPrompt.SetActive(false);
+            if (placementDecision != null) placementDecision.SetActive(false);
             flow.Placement.ClearSelection();
-            if (offerExit && flow.AtStationEnd) ShowExitPrompt();
+            if (completeVisit) flow.CompletePlacementVisit();
         }
         public Text status, hint, toast, departText, modeText;
         public Button startButton, modeButton, depart, returnButton;
         public Image progress;
-        public Button returnToTravelerButton;
+        [HideInInspector] public Button returnToTravelerButton;
         [Serializable]
         public class MaterialButton
         {
@@ -55,44 +60,39 @@ namespace Hiking.Journey
         float toastUntil;
         Text panoramaTitle;
         public JourneyMode mode = JourneyMode.Demo;
-
         public void Initialize(GameFlowController owner)
         {
             flow = owner;
-            if (confirmPlacement != null) confirmPlacement.onClick.AddListener(() => flow.Placement.ConfirmPlacement());
-            if (cancelPlacement != null) cancelPlacement.onClick.AddListener(() => ClosePlacementPrompt());
-            if (placementMaterialButtons != null)
-                foreach (var view in placementMaterialButtons)
-                {
-                    var id = view.materialId;
-                    view.button.onClick.AddListener(() => flow.Placement.Select(id));
-                }
-            ClosePlacementPrompt(false);
-            if (confirmExit != null) confirmExit.onClick.AddListener(() => flow.Depart());
-            if (cancelExit != null) cancelExit.onClick.AddListener(CloseExitPrompt);
-            CloseExitPrompt();
-            if (returnToTravelerButton != null)
+            confirmPlacement.onClick.AddListener(() => { CommitQuantity(quantityInput.text); flow.Placement.ConfirmPlacement(); });
+            cancelPlacement.onClick.AddListener(ShowPlacementDecision);
+            choosePlacement.onClick.AddListener(() => flow.Placement.ChooseToPlace());
+            skipPlacement.onClick.AddListener(() => flow.Placement.SkipPlacement());
+            quantityMinus.onClick.AddListener(() => flow.Placement.AdjustQuantity(-1));
+            quantityPlus.onClick.AddListener(() => flow.Placement.AdjustQuantity(1));
+            quantityInput.onEndEdit.AddListener(CommitQuantity);
+            foreach (var view in placementMaterialButtons)
             {
-                returnToTravelerButton.onClick.AddListener(() => flow.Camera.ReturnToTraveler());
-                returnToTravelerButton.gameObject.SetActive(false);
+                var id = view.materialId; view.button.onClick.AddListener(() => flow.Placement.Select(id));
             }
+            ClosePlacementPrompt(false); CloseExitPrompt();
+            if (depart != null) depart.gameObject.SetActive(false);
+            if (modeButton != null) modeButton.gameObject.SetActive(false);
+            if (returnToTravelerButton != null) returnToTravelerButton.gameObject.SetActive(false);
             foreach (var label in panoramaPanel.GetComponentsInChildren<Text>(true))
                 if (label.text.Contains("旅途完成")) { panoramaTitle = label; break; }
-            UpdateModeLabel();
+            if (modeText != null) modeText.text = $"自动行走 · 移动 {flow.Config.tileMoveSeconds:0.#} 秒 · 休息 {flow.Config.tileRestSeconds:0.#} 秒";
         }
-        public void StartJourney() { if (flow != null) flow.StartJourney(mode); }
-        public void Depart() { ShowExitPrompt(); }
-        public void ReturnToStart() { if (flow != null) { if (flow.IsPreviewing) flow.ExitPreview(); else flow.ReturnToStart(); } }
-        public void PreviewPanorama() { if (flow != null) flow.PreviewPanorama(); }
-        public void SelectMaterial(string id) { if (flow != null) flow.Placement.Select(id); }
-        public void CycleMode()
+        void CommitQuantity(string text)
         {
-            if (flow == null || flow.Session.Phase != JourneyPhase.Start) return;
-            mode = (JourneyMode)(((int)mode + 1) % 3);
-            UpdateModeLabel();
+            flow.Placement.SetQuantity(int.TryParse(text, out int value) ? value : 1);
+            quantityInput.SetTextWithoutNotify(flow.Placement.SelectedQuantity.ToString());
         }
-        void UpdateModeLabel() => modeText.text = ModeName(mode) + " · " + flow.Config.WaitSeconds(mode) + " 秒";
-
+        public void StartJourney() => flow.StartJourney(mode);
+        public void Depart() { }
+        public void CycleMode() { }
+        public void ReturnToStart() { if (flow.IsPreviewing) flow.ExitPreview(); else flow.ReturnToStart(); }
+        public void PreviewPanorama() => flow.PreviewPanorama();
+        public void SelectMaterial(string id) => flow.Placement.Select(id);
         void LateUpdate()
         {
             if (flow == null) return;
@@ -103,42 +103,29 @@ namespace Hiking.Journey
             if (panoramaTitle != null) panoramaTitle.text = flow.IsPreviewing ? "全景预览" : "旅途完成 · 全景观察";
             var returnLabel = returnButton.GetComponentInChildren<Text>();
             if (returnLabel != null) returnLabel.text = flow.IsPreviewing ? "返回旅途" : "返回开始";
-            bool stationary = !flow.IsPreviewing && session.Phase == JourneyPhase.AtStation;
-            if (returnToTravelerButton != null)
-                returnToTravelerButton.gameObject.SetActive(stationary && !IsModalOpen && flow.Camera.HasManualPan);
-            bool atSpawn = session.Phase == JourneyPhase.AtSpawn;
-            status.text = atSpawn ? "出生点 · 0% · 等待出发" : session.Phase == JourneyPhase.Revealing ? "旅途完成 · 100% · 正在展开全景…" :
-                $"第 {session.StationIndex + 1} / {session.StationCount} 站 · {(stationary ? "驻足" : "行走中")} · {flow.Traveler.Progress01:P0}";
-            if (stationary) status.text = $"第 {session.StationIndex + 1} / {session.StationCount} 站 · {flow.CurrentStation.ThemeName} · 已驻留 {Math.Floor(session.ResidenceSeconds)} 秒";
-            depart.interactable = stationary && !PlacementPromptOpen && flow.AtStationEnd;
-            departText.text = stationary ? (flow.AtStationEnd ? "查看离站选项" : "请走到本站最后一块") : "旅途中";
-            if (ExitPromptOpen)
+            string activity = flow.Activity == JourneyActivity.Resting ? $"休息 {Math.Ceiling(flow.RestRemainingSeconds)} 秒" :
+                flow.Activity == JourneyActivity.AwaitingPlacement ? "等待投放选择" : flow.Activity == JourneyActivity.BetweenStations ? "前往下一站" :
+                flow.Activity == JourneyActivity.Complete ? "旅途完成" : "自动行走";
+            if (flow.Map != null) status.text = $"第 {session.StationIndex + 1} / {session.StationCount} 站 · {flow.CurrentStation.ThemeName} · 第 {flow.CurrentTileIndex + 1} / 12 块 · {activity}";
+            progress.rectTransform.anchorMax = new Vector2(flow.Traveler.Progress01, 1);
+            UpdateMaterials(materialButtons, false);
+            UpdateMaterials(placementMaterialButtons, PlacementPromptOpen);
+            var slot = flow.Placement.PendingSlot;
+            if (PlacementDecisionOpen && slot != null)
+                placementDecisionText.text = $"已到达第 {slot.tileIndex + 1} 块投放点\n是否投放材料？\n不投放则休息 {flow.Config.tileRestSeconds:0.#} 秒后继续";
+            if (PlacementPromptOpen && slot != null)
             {
-                bool last = session.StationIndex == session.StationCount - 1;
-                exitPromptText.text = $"本站已驻留 {Math.Floor(session.ResidenceSeconds)} 秒\n" +
-                    (session.Ready ? (last ? "已达到最短停留时间，完成旅途？" : "已达到最短停留时间，前往下一站？") :
-                    $"最短停留 {Math.Ceiling(session.WaitSeconds)} 秒，还需 {Math.Ceiling(session.RemainingSeconds)} 秒");
-                confirmExit.interactable = flow.CanDepart;
-            }
-            progress.rectTransform.anchorMax = new Vector2(session.WaitSeconds > 0 ? 1 - (float)(session.RemainingSeconds / session.WaitSeconds) : 0, 1);
-            bool atSlot = stationary && flow.Placement.CurrentSlot != null && !ExitPromptOpen;
-            UpdateMaterials(materialButtons, atSlot);
-            UpdateMaterials(placementMaterialButtons, PlacementPromptOpen && atSlot);
-            if (PlacementPromptOpen)
-            {
-                var slot = flow.Placement.PendingSlot;
-                if (slot != null)
-                {
-                    var selected = flow.Material(flow.Placement.SelectedMaterialId);
-                    string action = selected == null ? "选择材料后确认，每次消耗 1 份" :
-                        flow.Session.Stock(selected.id) <= 0 ? "该材料库存不足，请选择其他材料" :
-                        selected.id == "water" ? "确认投水：本地块水分 +1" : "确认投种：本投放点种子 +1";
-                    placementPromptText.text = $"是否投放？ · 第 {slot.tileIndex + 1} 块\n水分 {slot.station.MoistureAt(slot.tileIndex)} · 种子 {slot.SeedCount}\n{action}";
-                }
+                int quantity = flow.Placement.SelectedQuantity;
+                var selected = flow.Material(flow.Placement.SelectedMaterialId);
+                string action = selected == null ? "请选择材料" : flow.Session.Stock(selected.id) == 0 ? "库存不足，可返回选择不投放" :
+                    selected.id == "water" ? $"投水 {quantity} 份：当前地块水分 +{quantity}" : $"投种 {quantity} 份：当前投放点种子 +{quantity}";
+                placementPromptText.text = $"第 {slot.tileIndex + 1} 块 · 水分 {slot.station.MoistureAt(slot.tileIndex)} · 种子 {slot.SeedCount}\n{action}";
+                if (!quantityInput.isFocused) quantityInput.SetTextWithoutNotify(quantity.ToString());
+                quantityMinus.interactable = quantity > 1;
+                quantityPlus.interactable = quantity < flow.Session.Stock(flow.Placement.SelectedMaterialId);
                 confirmPlacement.interactable = flow.Placement.CanConfirm;
             }
-            if (hint != null) hint.text = !stationary ? "" : atSlot ? "到达投放点 · 可选择水或种子投放" :
-                "点击地块移动 · 到白框投放点后选择材料 · 地块下方显示水分，框内数字为种子";
+            if (hint != null) hint.text = "自动前行 · 白框为投放点 · 灰蓝色为过渡块 · 下方数字为水分，框内数字为种子";
             if (toast != null && Time.unscaledTime > toastUntil) toast.text = "";
         }
         void UpdateMaterials(MaterialButton[] views, bool available)
@@ -146,23 +133,17 @@ namespace Hiking.Journey
             if (views == null) return;
             foreach (var view in views)
             {
-                var material = flow.Material(view.materialId);
-                int stock = flow.Session.Stock(view.materialId);
+                var material = flow.Material(view.materialId); int stock = flow.Session.Stock(view.materialId);
                 view.button.interactable = available && material != null && stock > 0;
                 if (material == null) { view.label.text = "未配置材料"; continue; }
-                bool selected = flow.Placement.SelectedMaterialId == material.id;
+                bool selected = available && flow.Placement.SelectedMaterialId == material.id;
                 view.label.text = (selected ? "✓ " : "") + material.displayName + " × " + stock;
-                if (view.button.targetGraphic != null)
-                    view.button.targetGraphic.color = selected ? view.selectedColor : view.normalColor;
+                if (view.button.targetGraphic != null) view.button.targetGraphic.color = selected ? view.selectedColor : view.normalColor;
             }
         }
         public void Notify(string message)
         {
-            if (toast == null) return;
-            toast.text = message; toastUntil = Time.unscaledTime + 2.5f;
+            if (toast == null) return; toast.text = message; toastUntil = Time.unscaledTime + 2.5f;
         }
-        static string ModeName(JourneyMode mode) => mode == JourneyMode.Demo ? "开发演示" : mode == JourneyMode.Normal ? "普通模式" : "快速模式";
-
     }
 }
-

@@ -50,9 +50,9 @@ namespace Hiking.Journey
             if (Phase == JourneyPhase.AtStation && seconds > 0)
                 { ResidenceSeconds += seconds; RemainingSeconds = Math.Max(0, WaitSeconds - ResidenceSeconds); }
         }
-        public bool TryDepart()
+        public bool TryDepart(bool automatic = false)
         {
-            if (!Ready) return false;
+            if (automatic ? Phase != JourneyPhase.AtStation : !Ready) return false;
             RemainingSeconds = 0;
             Phase = JourneyPhase.Moving;
             return true;

@@ -18,12 +18,12 @@ MonoBehaviour:
   travelSeconds: 3
   stationTravelSeconds: []
   finishTravelSeconds: 1
+  visibleTileCount: 7
+  walkTilesPerSecond: 3
   revealSeconds: 2
   localCameraSize: 4.8
   panoramaCameraSize: 4.55
-  visibleTileCount: 7
-  walkTilesPerSecond: 3
-  wheelDistance: 2
+  wheelDistance: 10
   wheelSmoothTime: 0.2
   returnToTravelerSmoothTime: 0.35
   materials:
@@ -35,3 +35,5 @@ MonoBehaviour:
     displayName: "\u79CD\u5B50"
     color: {r: 0.62, g: 0.82, b: 0.32, a: 1}
     startingCount: 18
+  tileMoveSeconds: 5
+  tileRestSeconds: 5

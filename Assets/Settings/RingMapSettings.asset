@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: RingMapSettings
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.RingMapSettings
   blockCount: 6
-  stationLength: 15
+  stationLength: 12
   panoramaScale: 1.5
-  patchesPerStation: 15
+  patchesPerStation: 12
   pathMaterial: {fileID: 2100000, guid: 1383ba9e2843ba34a8acdb9e19110c18, type: 2}
   snowColor: {r: 1, g: 1, b: 1, a: 1}
   grassColor: {r: 0.3, g: 0.72, b: 0.3, a: 1}
@@ -25,3 +25,4 @@ MonoBehaviour:
   grassMoisture: 6
   desertMoisture: 2
   tileLabelFont: {fileID: 12800000, guid: 92affa0c1f97a944b81c33bdc9b3790f, type: 3}
+  transitionTileColor: {r: 0.4, g: 0.47, b: 0.58, a: 1}
