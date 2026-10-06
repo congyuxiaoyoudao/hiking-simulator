@@ -59,7 +59,7 @@ namespace Hiking.Journey
         public MaterialButton[] materialButtons;
         float toastUntil;
         Text panoramaTitle;
-        public JourneyMode mode = JourneyMode.Demo;
+        public JourneyMode mode = JourneyMode.Normal;
         public void Initialize(GameFlowController owner)
         {
             flow = owner;
@@ -76,11 +76,16 @@ namespace Hiking.Journey
             }
             ClosePlacementPrompt(false); CloseExitPrompt();
             if (depart != null) depart.gameObject.SetActive(false);
-            if (modeButton != null) modeButton.gameObject.SetActive(false);
+            if (modeButton != null)
+            {
+                modeButton.gameObject.SetActive(true);
+                modeButton.onClick.AddListener(CycleMode);
+            }
+            if (mode != JourneyMode.Quick) mode = JourneyMode.Normal;
             if (returnToTravelerButton != null) returnToTravelerButton.gameObject.SetActive(false);
             foreach (var label in panoramaPanel.GetComponentsInChildren<Text>(true))
                 if (label.text.Contains("旅途完成")) { panoramaTitle = label; break; }
-            if (modeText != null) modeText.text = $"自动行走 · 移动 {flow.Config.tileMoveSeconds:0.#} 秒 · 休息 {flow.Config.tileRestSeconds:0.#} 秒";
+            RefreshModeLabel();
         }
         void CommitQuantity(string text)
         {
@@ -89,7 +94,20 @@ namespace Hiking.Journey
         }
         public void StartJourney() => flow.StartJourney(mode);
         public void Depart() { }
-        public void CycleMode() { }
+        public void CycleMode()
+        {
+            if (flow == null || flow.Session.Phase != JourneyPhase.Start) return;
+            mode = mode == JourneyMode.Quick ? JourneyMode.Normal : JourneyMode.Quick;
+            RefreshModeLabel();
+        }
+        void RefreshModeLabel()
+        {
+            if (modeText == null) return;
+            string name = mode == JourneyMode.Quick ? "开发快速" : "默认模式";
+            modeText.text = $"{name}（点击切换）\n移动 {flow.Config.MoveSeconds(mode):0.##} 秒 · 站间 {flow.Config.TransitionSeconds(mode):0.##} 秒";
+            if (modeButton != null && modeButton.targetGraphic != null)
+                modeButton.targetGraphic.color = mode == JourneyMode.Quick ? new Color(.28f,.49f,.43f) : new Color(.17f,.29f,.31f);
+        }
         public void ReturnToStart() { if (flow.IsPreviewing) flow.ExitPreview(); else flow.ReturnToStart(); }
         public void PreviewPanorama() => flow.PreviewPanorama();
         public void SelectMaterial(string id) => flow.Placement.Select(id);
@@ -103,8 +121,7 @@ namespace Hiking.Journey
             if (panoramaTitle != null) panoramaTitle.text = flow.IsPreviewing ? "全景预览" : "旅途完成 · 全景观察";
             var returnLabel = returnButton.GetComponentInChildren<Text>();
             if (returnLabel != null) returnLabel.text = flow.IsPreviewing ? "返回旅途" : "返回开始";
-            string activity = flow.Activity == JourneyActivity.Resting ? $"休息 {Math.Ceiling(flow.RestRemainingSeconds)} 秒" :
-                flow.Activity == JourneyActivity.AwaitingPlacement ? "等待投放选择" : flow.Activity == JourneyActivity.BetweenStations ? "前往下一站" :
+            string activity = flow.Activity == JourneyActivity.AwaitingPlacement ? "等待投放选择" : flow.Activity == JourneyActivity.BetweenStations ? "前往下一站" :
                 flow.Activity == JourneyActivity.Complete ? "旅途完成" : "自动行走";
             if (flow.Map != null) status.text = $"第 {session.StationIndex + 1} / {session.StationCount} 站 · {flow.CurrentStation.ThemeName} · 第 {flow.CurrentTileIndex + 1} / 12 块 · {activity}";
             progress.rectTransform.anchorMax = new Vector2(flow.Traveler.Progress01, 1);
@@ -112,7 +129,7 @@ namespace Hiking.Journey
             UpdateMaterials(placementMaterialButtons, PlacementPromptOpen);
             var slot = flow.Placement.PendingSlot;
             if (PlacementDecisionOpen && slot != null)
-                placementDecisionText.text = $"已到达第 {slot.tileIndex + 1} 块投放点\n是否投放材料？\n不投放则休息 {flow.Config.tileRestSeconds:0.#} 秒后继续";
+                placementDecisionText.text = $"已到达第 {slot.tileIndex + 1} 块投放点\n是否投放材料？\n不投放则立即继续前行";
             if (PlacementPromptOpen && slot != null)
             {
                 int quantity = flow.Placement.SelectedQuantity;

@@ -12,6 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dcf19aa6164ad164186aa4456d6c163c, type: 3}
   m_Name: JourneyConfig
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.JourneyConfig
+  journeyVerticalOffset: 0.12
+  tileMoveSeconds: 3
+  tileRestSeconds: 5
+  fastTileMoveSeconds: 0.5
+  fastTileRestSeconds: 0.5
+  cameraTransitionStartFromEnd: 3
+  stationTransitionSeconds: 5
+  fastStationTransitionSeconds: 1.5
   normalWaitSeconds: 300
   quickWaitSeconds: 30
   demoWaitSeconds: 3
@@ -35,5 +43,3 @@ MonoBehaviour:
     displayName: "\u79CD\u5B50"
     color: {r: 0.62, g: 0.82, b: 0.32, a: 1}
     startingCount: 18
-  tileMoveSeconds: 5
-  tileRestSeconds: 5

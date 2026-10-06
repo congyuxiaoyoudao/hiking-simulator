@@ -32,11 +32,9 @@ namespace Hiking.Journey
         public bool IsTransitioning => reveal != null;
         public float ProjectionBlend { get; private set; }
 
-        float journeyCenter, transitionStart;
-        bool stationTransition;
+        float journeyCenter;
         public void RestoreJourneyView() => FrameJourney();
         public float JourneyViewWidth => flow.CurrentStation.length;
-        public void BeginStationTransition() { transitionStart = journeyCenter; stationTransition = true; }
         public void Initialize(GameFlowController owner)
         {
             flow = owner; WorldCamera.orthographic = true;
@@ -51,7 +49,6 @@ namespace Hiking.Journey
         public void ShowStation(Station station)
         {
             if (flow.Map == null) return;
-            stationTransition = false;
             journeyCenter = station.startDistance + JourneyViewWidth * .5f;
             FrameJourney();
         }
@@ -69,19 +66,28 @@ namespace Hiking.Journey
             var map = flow.Map;
             WorldCamera.ResetProjectionMatrix();
             float width = JourneyViewWidth;
-            if (stationTransition && flow.Session.Phase == JourneyPhase.Moving)
+            var station = flow.CurrentStation;
+            journeyCenter = station.startDistance + width * .5f;
+            if (flow.Session.StationIndex < map.stations.Length - 1)
             {
-                int next = Mathf.Min(flow.Session.StationIndex + 1, map.stations.Length - 1);
-                float destination = map.stations[next].startDistance + width * .5f;
-                // The camera covers a full viewport width while the fox crosses one tile.
-                journeyCenter = Mathf.Lerp(transitionStart, destination, flow.Traveler.MoveFraction);
+                int startTile = station.tileCount - Mathf.Clamp(flow.Config.cameraTransitionStartFromEnd, 1, station.tileCount);
+                float walkedTiles = Mathf.Max(0, (map.RouteDistanceAtProgress(flow.Traveler.Progress01) - station.TileCenter(startTile)) / station.TileWidth);
+                int remainingSteps = station.tileCount - 1 - startTile;
+                // Weight each segment by its duration so the slower crossing does not change camera speed.
+                // Deriving progress from the fox also freezes the camera during decisions and previews.
+                float duration = remainingSteps * flow.MoveSeconds + flow.StationTransitionSeconds;
+                float elapsed = Mathf.Min(walkedTiles, remainingSteps) * flow.MoveSeconds
+                    + Mathf.Clamp01(walkedTiles - remainingSteps) * flow.StationTransitionSeconds;
+                float destination = map.stations[flow.Session.StationIndex + 1].startDistance + width * .5f;
+                journeyCenter = Mathf.Lerp(journeyCenter, destination, elapsed / duration);
             }
-            else journeyCenter = flow.CurrentStation.startDistance + width * .5f;
             float cameraX = map.transform.position.x - map.RouteLength * .5f + journeyCenter;
             WorldCamera.orthographic = true;
             WorldCamera.orthographicSize = width / (2 * Mathf.Max(.1f, WorldCamera.aspect));
             var rotation = Quaternion.Euler(overviewPitchAngle, 0, 0);
             var target = new Vector3(cameraX, map.transform.position.y + .6f, map.transform.position.z);
+            // Moving the camera up in screen space lowers the entire route without changing gameplay coordinates.
+            target += rotation * Vector3.up * (2 * WorldCamera.orthographicSize * flow.Config.journeyVerticalOffset);
             WorldCamera.transform.SetPositionAndRotation(target - rotation * Vector3.forward * 30, rotation);
             map.ArchiveBefore(cameraX - width * .5f - map.transform.position.x + map.RouteLength * .5f);
         }

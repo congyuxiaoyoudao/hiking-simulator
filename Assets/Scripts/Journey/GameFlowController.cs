@@ -16,9 +16,10 @@ namespace Hiking.Journey
         public JourneySession Session { get; } = new JourneySession();
         public JourneyMap Map { get; private set; }
         public JourneyMode Mode { get; private set; }
+        public float MoveSeconds => Config.MoveSeconds(Mode);
+        public float StationTransitionSeconds => Config.TransitionSeconds(Mode);
         public JourneyActivity Activity { get; private set; }
         public int CurrentTileIndex { get; private set; }
-        public float RestRemainingSeconds { get; private set; }
         double lastTime;
         int generation;
         public bool IsPreviewing { get; private set; }
@@ -35,9 +36,6 @@ namespace Hiking.Journey
             float delta = (float)(now - lastTime); lastTime = now;
             if (IsPreviewing) return;
             Session.Tick(delta);
-            if (Activity != JourneyActivity.Resting || UI.IsModalOpen) return;
-            RestRemainingSeconds = Mathf.Max(0, RestRemainingSeconds - delta);
-            if (RestRemainingSeconds <= 0) Advance();
         }
         public MaterialDefinition Material(string id) => Array.Find(Config.materials, entry => entry.id == id);
         public void StartJourney(JourneyMode mode)
@@ -67,7 +65,7 @@ namespace Hiking.Journey
             if (CurrentTileIndex == CurrentStation.tileCount - 1) { Depart(); return; }
             Activity = JourneyActivity.Walking;
             int nextTile = CurrentTileIndex + 1, currentGeneration = generation;
-            Traveler.MoveToProgress(Map.ProgressAtDistance(CurrentStation.TileCenter(nextTile)), Mathf.Max(.1f, Config.tileMoveSeconds), () =>
+            Traveler.MoveToProgress(Map.ProgressAtDistance(CurrentStation.TileCenter(nextTile)), MoveSeconds, () =>
             {
                 if (generation != currentGeneration) return;
                 CurrentTileIndex = nextTile;
@@ -76,19 +74,13 @@ namespace Hiking.Journey
                     Activity = JourneyActivity.AwaitingPlacement;
                     Placement.OnTravelerArrived();
                 }
-                else BeginRest();
+                else Advance();
             });
-        }
-        void BeginRest()
-        {
-            Activity = JourneyActivity.Resting;
-            RestRemainingSeconds = Mathf.Max(0, Config.tileRestSeconds);
-            lastTime = Time.realtimeSinceStartupAsDouble;
         }
         public void CompletePlacementVisit()
         {
             if (Activity != JourneyActivity.AwaitingPlacement || IsPreviewing) return;
-            UI.ClosePlacementPrompt(false); BeginRest();
+            UI.ClosePlacementPrompt(false); Advance();
         }
         void Depart()
         {
@@ -104,11 +96,11 @@ namespace Hiking.Journey
                 });
                 return;
             }
-            Activity = JourneyActivity.BetweenStations; Camera.BeginStationTransition();
-            Traveler.MoveToProgress(Map.stations[Session.StationIndex + 1].stopProgress, Mathf.Max(.1f, Config.tileMoveSeconds), () =>
+            Activity = JourneyActivity.BetweenStations;
+            Traveler.MoveToProgress(Map.stations[Session.StationIndex + 1].stopProgress, StationTransitionSeconds, () =>
             {
                 if (generation != currentGeneration || !Session.Arrive()) return;
-                CurrentTileIndex = 0; Camera.ShowStation(CurrentStation); BeginRest();
+                CurrentTileIndex = 0; Camera.ShowStation(CurrentStation); Advance();
                 UI.Notify("已抵达第 " + (Session.StationIndex + 1) + " 站");
             });
         }
@@ -116,7 +108,7 @@ namespace Hiking.Journey
         {
             generation++; UI.CloseExitPrompt(); UI.ClosePlacementPrompt(false);
             IsPreviewing = false; Traveler.Paused = false;
-            Activity = JourneyActivity.None; RestRemainingSeconds = 0; CurrentTileIndex = 0;
+            Activity = JourneyActivity.None; CurrentTileIndex = 0;
             Traveler.CancelMovement(); Camera.ResetCamera(); Placement.ClearSelection();
             Traveler.transform.SetParent(null, true); Traveler.gameObject.SetActive(false);
             if (Map != null) { Map.gameObject.SetActive(false); Destroy(Map.gameObject); Map = null; }

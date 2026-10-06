@@ -18,9 +18,23 @@ namespace Hiking.Journey
     [CreateAssetMenu(menuName = "Hiking/Journey Config")]
     public class JourneyConfig : ScriptableObject
     {
+        [Header("旅途画面布局")]
+        [Tooltip("按画面高度比例整体移动地图、狐狸和地块标签。正值向下，负值向上；0.06 表示下移画面高度的 6%。运行中可调整。")]
+        [InspectorName("地图与赤狐下移比例"), Range(-.25f, .25f)] public float journeyVerticalOffset = .06f;
         [Header("自动旅途节奏")]
-        [InspectorName("每块移动时间（秒）"), Min(.1f)] public float tileMoveSeconds = 5;
-        [InspectorName("每块休息时间（秒）"), Min(0)] public float tileRestSeconds = 5;
+        [InspectorName("每块移动时间（秒）"), Min(.1f)] public float tileMoveSeconds = 3;
+        [HideInInspector] public float tileRestSeconds = 5;
+        [Header("开发快速模式")]
+        [InspectorName("快速移动时间（秒）"), Min(.1f)] public float fastTileMoveSeconds = .5f;
+        [HideInInspector] public float fastTileRestSeconds = .5f;
+        [Header("站间镜头过渡")]
+        [Tooltip("狐狸抵达本站倒数第几块后开始推进镜头。2 为倒数第二块，1 为最后一块；到下一站首块时镜头恰好前进一整站。最后一站不向前推进。") ]
+        [InspectorName("镜头从倒数第几块开始"), Range(1, 12)] public int cameraTransitionStartFromEnd = 2;
+        [InspectorName("默认模式站间移动时间（秒）"), Min(.1f)] public float stationTransitionSeconds = 8;
+        [InspectorName("快速模式站间移动时间（秒）"), Min(.1f)] public float fastStationTransitionSeconds = 1.5f;
+        public float TransitionSeconds(JourneyMode mode) => Mathf.Max(.1f, mode == JourneyMode.Quick ? fastStationTransitionSeconds : stationTransitionSeconds);
+        public float MoveSeconds(JourneyMode mode) => Mathf.Max(.1f, mode == JourneyMode.Quick ? fastTileMoveSeconds : tileMoveSeconds);
+        public float RestSeconds(JourneyMode mode) => Mathf.Max(0, mode == JourneyMode.Quick ? fastTileRestSeconds : tileRestSeconds);
         [Header("每站等待时间（真实秒数，仅新旅途生效）")]
         [HideInInspector] [Min(0.1f)] public float normalWaitSeconds = 300;
         [HideInInspector] [Min(0.1f)] public float quickWaitSeconds = 30;

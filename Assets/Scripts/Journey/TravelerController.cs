@@ -41,14 +41,21 @@ namespace Hiking.Journey
             float start = Progress01;
             MoveFraction = 0; MoveDirection = Mathf.Sign(target - start);
             float elapsed = 0;
+            double previousTime = Time.realtimeSinceStartupAsDouble;
             yield return null;
             while (elapsed < Mathf.Max(.1f, duration) || Paused)
             {
+                double now = Time.realtimeSinceStartupAsDouble;
+                float delta = Mathf.Max(0, (float)(now - previousTime));
+                previousTime = now;
                 if (Paused) { yield return null; continue; }
-                elapsed += Time.unscaledDeltaTime;
+                elapsed += delta;
                 MoveFraction = Mathf.Clamp01(elapsed / Mathf.Max(.1f, duration));
                 Progress01 = Mathf.Lerp(start, target, MoveFraction);
-                RefreshPosition(); yield return null;
+                RefreshPosition();
+                // Finish on the arrival frame so the next step starts without an idle frame.
+                if (MoveFraction >= 1) break;
+                yield return null;
             }
             IsMoving = false; movement = null; arrived?.Invoke();
         }
