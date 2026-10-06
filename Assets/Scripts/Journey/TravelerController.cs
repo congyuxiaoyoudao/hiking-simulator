@@ -9,6 +9,8 @@ namespace Hiking.Journey
         public bool IsMoving { get; private set; }
         public float Progress01 { get; private set; }
         public bool Paused { get; set; }
+        public float MoveFraction { get; private set; }
+        public float MoveDirection { get; private set; }
         Coroutine movement;
         JourneyMap map;
         float? transitionInset;
@@ -26,10 +28,7 @@ namespace Hiking.Journey
         {
             transform.rotation = camera.transform.rotation;
             if (visual == null) return;
-            var sprite = visual.GetComponentInChildren<SpriteRenderer>();
-            float halfWidth = sprite != null ? sprite.localBounds.extents.x * sprite.transform.localScale.x : .4f;
-            // Keep the sprite fully on screen while its progress anchor touches the route's screen edge.
-            visual.localPosition = new Vector3(transitionInset ?? (map != null && !map.ShowingRing ? (1 - 2 * Progress01) * halfWidth : 0), 0, 0);
+            visual.localPosition = new Vector3(transitionInset ?? 0, 0, 0);
         }
         public void MoveToProgress(float target, float duration, Action arrived)
         {
@@ -40,13 +39,15 @@ namespace Hiking.Journey
         {
             IsMoving = true;
             float start = Progress01;
+            MoveFraction = 0; MoveDirection = Mathf.Sign(target - start);
             float elapsed = 0;
             yield return null;
-            while (Progress01 < target || Paused)
+            while (elapsed < Mathf.Max(.1f, duration) || Paused)
             {
                 if (Paused) { yield return null; continue; }
                 elapsed += Time.unscaledDeltaTime;
-                Progress01 = Mathf.Lerp(start, target, Mathf.Clamp01(elapsed / Mathf.Max(.1f, duration)));
+                MoveFraction = Mathf.Clamp01(elapsed / Mathf.Max(.1f, duration));
+                Progress01 = Mathf.Lerp(start, target, MoveFraction);
                 RefreshPosition(); yield return null;
             }
             IsMoving = false; movement = null; arrived?.Invoke();

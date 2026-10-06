@@ -21,6 +21,7 @@ namespace Hiking.Journey
         public int StationCount { get; private set; }
         public double RemainingSeconds { get; private set; }
         public double WaitSeconds { get; private set; }
+        public double ResidenceSeconds { get; private set; }
         public bool Ready => Phase == JourneyPhase.AtSpawn || Phase == JourneyPhase.AtStation && RemainingSeconds <= 0;
         public bool ApproachingFirstStation => approachingFirstStation;
         public IReadOnlyList<PlacementRequest> Placements => placements;
@@ -36,6 +37,7 @@ namespace Hiking.Journey
                 inventory.Add(material.id, Math.Max(0, material.startingCount));
             StationCount = stationCount;
             WaitSeconds = waitSeconds;
+            ResidenceSeconds = 0;
             StationIndex = 0;
             approachingFirstStation = approachFirstStation;
             RemainingSeconds = approachFirstStation ? 0 : WaitSeconds;
@@ -46,7 +48,7 @@ namespace Hiking.Journey
         public void Tick(double seconds)
         {
             if (Phase == JourneyPhase.AtStation && seconds > 0)
-                RemainingSeconds = Math.Max(0, RemainingSeconds - seconds);
+                { ResidenceSeconds += seconds; RemainingSeconds = Math.Max(0, WaitSeconds - ResidenceSeconds); }
         }
         public bool TryDepart()
         {
@@ -69,6 +71,7 @@ namespace Hiking.Journey
             else
             {
                 StationIndex++;
+                ResidenceSeconds = 0;
                 RemainingSeconds = WaitSeconds;
                 Phase = JourneyPhase.AtStation;
             }
@@ -93,7 +96,7 @@ namespace Hiking.Journey
         public void Reset()
         {
             Phase = JourneyPhase.Start; StationIndex = 0; StationCount = 0;
-            RemainingSeconds = 0; inventory.Clear(); placements.Clear();
+            RemainingSeconds = 0; ResidenceSeconds = 0; inventory.Clear(); placements.Clear();
             approachingFirstStation = false;
         }
     }

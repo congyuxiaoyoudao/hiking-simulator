@@ -32,6 +32,55 @@ namespace Hiking.Journey
         public bool IsTransitioning => reveal != null;
         public float ProjectionBlend { get; private set; }
 
+        float journeyCenter, transitionStart, panTarget, panVelocity;
+        bool stationTransition, manualPan, returningToTraveler;
+        public bool HasManualPan => manualPan;
+        public bool IsReturningToTraveler => returningToTraveler;
+        public void ResumeFollow()
+        {
+            // A movement click resumes the normal center/boundary follow immediately.
+            // Smoothing a moving fox target here would leave the camera trailing behind.
+            if ((manualPan || returningToTraveler) && flow.Map != null)
+                journeyCenter = ClampCenter(flow.Map.RouteDistanceAtProgress(flow.Traveler.Progress01));
+            manualPan = returningToTraveler = false;
+            panVelocity = 0;
+            panTarget = journeyCenter;
+        }
+        public void ReturnToTraveler()
+        {
+            if (flow.Map == null || flow.IsPreviewing || flow.Session.Phase != JourneyPhase.AtStation) return;
+            manualPan = false; returningToTraveler = true; panVelocity = 0;
+        }
+        public void RestoreJourneyView() => FrameJourney();
+        public float JourneyViewWidth => flow.Map.TileWidth * Mathf.Clamp(flow.Config.visibleTileCount, 1, flow.CurrentStation.tileCount);
+        public void BeginStationTransition()
+        {
+            transitionStart = journeyCenter; stationTransition = true;
+            manualPan = returningToTraveler = false; panVelocity = 0;
+        }
+        public void PanTiles(float tiles)
+        {
+            if (flow.Map == null || flow.IsPreviewing || flow.Session.Phase != JourneyPhase.AtStation || Mathf.Approximately(tiles, 0)) return;
+            if (!manualPan) { panTarget = journeyCenter; panVelocity = 0; }
+            manualPan = true; returningToTraveler = false;
+            // Accumulate wheel input on the target, not the partially interpolated position.
+            panTarget = ClampCenter(panTarget + tiles * flow.Map.TileWidth);
+        }
+        float ClampCenter(float center)
+        {
+            var station = flow.CurrentStation;
+            float half = JourneyViewWidth * .5f;
+            return Mathf.Clamp(center, station.startDistance + half, station.startDistance + station.length - half);
+        }
+        void SmoothJourneyCenter(float target, float smoothTime)
+        {
+            journeyCenter = ClampCenter(Mathf.SmoothDamp(journeyCenter, target, ref panVelocity,
+                Mathf.Max(.01f, smoothTime), Mathf.Infinity, Time.unscaledDeltaTime));
+            if (Mathf.Abs(journeyCenter - target) < flow.Map.TileWidth * .001f)
+            {
+                journeyCenter = target; panVelocity = 0; returningToTraveler = false;
+            }
+        }
         public void Initialize(GameFlowController owner)
         {
             flow = owner; WorldCamera.orthographic = true;
@@ -45,25 +94,53 @@ namespace Hiking.Journey
         }
         public void ShowStation(Station station)
         {
-            if (flow.Map != null) FrameJourney();
+            if (flow.Map == null) return;
+            stationTransition = manualPan = returningToTraveler = false; panVelocity = 0;
+            journeyCenter = station.startDistance + JourneyViewWidth * .5f;
+            FrameJourney();
         }
         void LateUpdate()
         {
             if (flow == null || flow.Map == null) return;
             if (reveal == null && (flow.IsPreviewing || flow.Session.Phase == JourneyPhase.Panorama)) BrowsePanorama();
-            else if (reveal == null && flow.Session.Phase != JourneyPhase.Revealing) FrameJourney();
+            else if (reveal == null && flow.Session.Phase != JourneyPhase.Revealing) FrameJourney(true);
             flow.Traveler.FaceCamera(WorldCamera);
             if (labels == null) labels = flow.Map.GetComponentsInChildren<TextMesh>(true);
             foreach (var label in labels) label.transform.rotation = WorldCamera.transform.rotation;
         }
-        void FrameJourney()
+        void FrameJourney(bool advance = false)
         {
             var map = flow.Map;
             WorldCamera.ResetProjectionMatrix();
-            float width = map.ViewWidth;
-            float progress = flow.Traveler.Progress01;
-            float cameraX = map.transform.position.x - map.RouteLength * .5f
-                + map.ViewStartDistance(progress) + width * .5f;
+            float width = JourneyViewWidth;
+            if (stationTransition && flow.Session.Phase == JourneyPhase.Moving)
+            {
+                int next = Mathf.Min(flow.Session.StationIndex + 1, map.stations.Length - 1);
+                float destination = map.stations[next].startDistance + width * .5f;
+                // The camera covers a full viewport width while the fox crosses one tile.
+                journeyCenter = Mathf.Lerp(transitionStart, destination, flow.Traveler.MoveFraction);
+            }
+            else
+            {
+                if (advance && !flow.IsPreviewing)
+                {
+                    var mouse = Mouse.current;
+                    if (mouse != null && Application.isFocused && !flow.UI.IsModalOpen && !PointerUtility.OverUI(mouse.position.ReadValue()))
+                        PanTiles(-mouse.scroll.ReadValue().y / 120f * flow.Config.wheelDistance);
+                    if (returningToTraveler)
+                        SmoothJourneyCenter(ClampCenter(map.RouteDistanceAtProgress(flow.Traveler.Progress01)), flow.Config.returnToTravelerSmoothTime);
+                    else if (manualPan)
+                        SmoothJourneyCenter(ClampCenter(panTarget), flow.Config.wheelSmoothTime);
+                    else if (flow.Traveler.IsMoving)
+                    {
+                        float fox = map.RouteDistanceAtProgress(flow.Traveler.Progress01);
+                        if (flow.Traveler.MoveDirection > 0) journeyCenter = Mathf.Max(journeyCenter, fox);
+                        else journeyCenter = Mathf.Min(journeyCenter, fox);
+                    }
+                }
+                journeyCenter = ClampCenter(journeyCenter);
+            }
+            float cameraX = map.transform.position.x - map.RouteLength * .5f + journeyCenter;
             WorldCamera.orthographic = true;
             WorldCamera.orthographicSize = width / (2 * Mathf.Max(.1f, WorldCamera.aspect));
             var rotation = Quaternion.Euler(overviewPitchAngle, 0, 0);

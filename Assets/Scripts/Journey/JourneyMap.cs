@@ -19,7 +19,7 @@ namespace Hiking.Journey
         public float Bend { get; private set; }
         public int AssembledPatchCount { get; private set; }
         public bool ShowingRing { get; private set; }
-        public float ViewWidth => RouteLength / (stations.Length + 1);
+        public float ViewWidth => RouteLength / stations.Length;
         public float PanoramaScale => Mathf.Max(1, sourceSettings.panoramaScale);
         public Vector3 RingPoint(Vector3 route) => RouteGeometry.Point(route, RouteLength, 1) * PanoramaScale;
         readonly List<Mesh> ringMeshes = new List<Mesh>();
@@ -39,13 +39,18 @@ namespace Hiking.Journey
             displayVertices.Add(new Vector3[mesh.vertexCount]);
             generatedMeshes = routeMeshes.ToArray();
             var original = System.Array.Find(GetComponentsInChildren<MeshFilter>(), f => f.sharedMesh == mesh);
-            stripRenderers.Add(original.GetComponent<MeshRenderer>());
+            var stripRenderer = original.GetComponent<MeshRenderer>();
+            var tint = new MaterialPropertyBlock();
+            tint.SetColor("_Color", Color.white);
+            stripRenderer.SetPropertyBlock(tint);
+            stripRenderers.Add(stripRenderer);
             var obj = new GameObject(original.name + "_ArchivedRing");
             obj.transform.SetParent(transform, false);
             var ring = Instantiate(mesh); ring.name = mesh.name + "_Ring";
             obj.AddComponent<MeshFilter>().sharedMesh = ring;
             var renderer = obj.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = original.GetComponent<MeshRenderer>().sharedMaterial;
+            renderer.SetPropertyBlock(tint);
             renderer.enabled = false;
             ringMeshes.Add(ring); ringRenderers.Add(renderer); assembled.Add(false);
         }
@@ -87,23 +92,11 @@ namespace Hiking.Journey
             routeObjects.Add(target); objectCoordinates.Add(routeCoordinates);
             target.position = transform.TransformPoint(RouteGeometry.Point(routeCoordinates, RouteLength, Bend));
         }
-        // The spawn and each station occupy one viewport. The camera advances one station
-        // per arrival, then stays on the last station while the fox walks to its far edge.
-        public float ViewStartDistance(float progress)
-        {
-            if (stations == null || stations.Length == 0) return 0;
-            float section = ViewWidth;
-            progress = Mathf.Clamp01(progress);
-            if (progress <= stations[0].stopProgress)
-                return section * Mathf.InverseLerp(0, stations[0].stopProgress, progress);
-            for (int i = 0; i < stations.Length - 1; i++)
-                if (progress <= stations[i + 1].stopProgress)
-                    return (i + 1 + Mathf.InverseLerp(stations[i].stopProgress,
-                        stations[i + 1].stopProgress, progress)) * section;
-            return stations.Length * section;
-        }
-        public float RouteDistanceAtProgress(float progress) =>
-            ViewStartDistance(Mathf.Clamp01(progress)) + Mathf.Clamp01(progress) * ViewWidth;
+        public float TileWidth => stations[0].TileWidth;
+        public float ViewStartDistance(float progress) => Mathf.Clamp(RouteDistanceAtProgress(progress) - ViewWidth * .5f, 0, RouteLength - ViewWidth);
+        public float RouteDistanceAtProgress(float progress) => Mathf.Lerp(TileWidth * .5f, RouteLength - TileWidth * .5f, Mathf.Clamp01(progress));
+        public float ProgressAtDistance(float distance) => Mathf.InverseLerp(TileWidth * .5f, RouteLength - TileWidth * .5f, distance);
+
         public Vector3 ProgressPoint(float progress)
         {
             var route = new Vector3(RouteDistanceAtProgress(progress), sourceSettings.ringThickness * .5f + .5f, 0);

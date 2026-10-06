@@ -21,7 +21,11 @@ MonoBehaviour:
   revealSeconds: 2
   localCameraSize: 4.8
   panoramaCameraSize: 4.55
+  visibleTileCount: 7
+  walkTilesPerSecond: 3
   wheelDistance: 2
+  wheelSmoothTime: 0.2
+  returnToTravelerSmoothTime: 0.35
   materials:
   - id: water
     displayName: "\u6C34"

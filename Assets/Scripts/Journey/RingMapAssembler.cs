@@ -15,46 +15,55 @@ namespace Hiking.Journey
             try
             {
                 map.sourceSettings = settings;
-                // One viewport for the spawn, followed by the stations; the route ends at the last station.
-                map.RouteLength = Mathf.Max(2, settings.stationLength) * (settings.blockCount + 1);
+                map.RouteLength = Mathf.Max(2, settings.stationLength) * settings.blockCount;
                 map.radius = map.RouteLength / (2 * Mathf.PI);
                 map.stations = new Station[settings.blockCount];
-                float section = map.ViewWidth;
-                int patches = Mathf.Clamp(settings.patchesPerStation, 1, 24);
-                var startBuffer = new GameObject("StartBuffer").transform;
-                startBuffer.SetParent(root.transform, false);
-                AddPatches(map, startBuffer, 0, section, patches, settings, settings.transitionColor);
+                float section = map.RouteLength / settings.blockCount;
+                int patches = Mathf.Max(3, settings.patchesPerStation);
                 for (int i = 0; i < map.stations.Length; i++)
                 {
                     var station = new GameObject("Station_" + (i + 1).ToString("00")).AddComponent<Station>();
                     station.transform.SetParent(root.transform, false);
                     station.stationId = "station-" + (i + 1);
-                    station.cameraRange = new Vector2((i + 1) * section, (i + 2) * section);
-                    // Default .5 spaces spawn, every stop, and finish evenly on the progress bar.
-                    station.stopProgress = (i + .5f + settings.StopPosition(i)) / (settings.blockCount + 1);
-                    float stopDistance = (i + 1) * section + station.stopProgress * section;
+                    station.startDistance = i * section; station.length = section; station.tileCount = patches;
+                    station.theme = (StationTheme)UnityEngine.Random.Range(0, 3);
+                    station.cameraRange = new Vector2(i * section, (i + 1) * section);
+                    map.stations[i] = station;
+                    station.InitializeMoisture(settings.InitialMoisture(station.theme));
+                    for (int tile = 0; tile < patches; tile++)
+                    {
+                        var anchor = Anchor(map, station.transform, "Moisture_" + tile,
+                            new Vector3(station.TileCenter(tile), -.15f, -.65f));
+                        var label = anchor.gameObject.AddComponent<TextMesh>();
+                        label.fontSize = 48; label.characterSize = .028f * Mathf.Min(1, station.TileWidth);
+                        label.anchor = TextAnchor.MiddleCenter; label.color = new Color(.65f,.87f,1);
+                        if (settings.tileLabelFont != null)
+                        {
+                            label.font = settings.tileLabelFont;
+                            label.GetComponent<MeshRenderer>().sharedMaterial = settings.tileLabelFont.material;
+                        }
+                        station.SetMoistureLabel(tile, label);
+                    }
+                    float stopDistance = station.TileCenter(0);
+                    station.stopProgress = map.ProgressAtDistance(stopDistance);
                     station.stopPoint = Anchor(map, station.transform, "StopPoint",
                         new Vector3(stopDistance, settings.ringThickness * .5f + .5f, 0));
-                    var marker = Anchor(map, station.transform, "StopLabel",
-                        new Vector3(stopDistance, 2f, 0));
-                    var text = marker.gameObject.AddComponent<TextMesh>();
-                    text.text = "STOP " + (i + 1).ToString("00"); text.fontSize = 48;
-                    text.characterSize = .04f; text.anchor = TextAnchor.MiddleCenter; text.color = Color.white;
                     station.slots = new PlacementSlot[3];
                     for (int j = 0; j < 3; j++)
                     {
+                        int tile = Mathf.FloorToInt((j + .5f) * patches / 3);
                         var slot = Anchor(map, station.transform, "Slot_" + j,
-                            new Vector3((i + 1 + .25f * (j + 1)) * section, .5f, 1));
+                            new Vector3(station.TileCenter(tile), settings.ringThickness * .5f + .025f, 0));
                         station.slots[j] = slot.gameObject.AddComponent<PlacementSlot>();
+                        station.slots[j].station = station; station.slots[j].tileIndex = tile;
                         station.slots[j].slotId = station.stationId + "/slot-" + j;
-                        slot.gameObject.SetActive(false);
+                        station.slots[j].CreateMarker(settings.pathMaterial, station.TileWidth * .75f);
                     }
-                    AddPatches(map, station.transform, (i + 1) * section, section,
-                        patches, settings, settings.StationColor(i));
-                    map.stations[i] = station;
+                    AddPatches(map, station.transform, i * section, section,
+                        patches, settings, settings.ThemeColor(station.theme));
                 }
                 map.finishPoint = Anchor(map, root.transform, "FinishPoint_100Percent",
-                    new Vector3(map.RouteLength, settings.ringThickness * .5f + .5f, 0));
+                    new Vector3(map.RouteLength - map.TileWidth * .5f, settings.ringThickness * .5f + .5f, 0));
                 map.SetBend(0);
                 if (!map.Validate(out string error)) throw new InvalidOperationException(error);
                 return map;
@@ -75,7 +84,7 @@ namespace Hiking.Journey
             {
                 var obj = new GameObject("Patch_" + (p + 1).ToString("00"));
                 obj.transform.SetParent(parent, false);
-                var mesh = CreateStrip(start + p * length / count, length / count,
+                var mesh = CreateStrip(start + p * length / count + length / count * .015f, length / count * .97f,
                     settings.ringThickness, color, obj.name);
                 obj.AddComponent<MeshFilter>().sharedMesh = mesh;
                 obj.AddComponent<MeshRenderer>().sharedMaterial = settings.pathMaterial;

@@ -13,24 +13,15 @@ MonoBehaviour:
   m_Name: RingMapSettings
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.RingMapSettings
   blockCount: 6
-  stationLength: 6
+  stationLength: 15
   panoramaScale: 1.5
-  patchesPerStation: 18
+  patchesPerStation: 15
   pathMaterial: {fileID: 2100000, guid: 1383ba9e2843ba34a8acdb9e19110c18, type: 2}
-  stationColors:
-  - {r: 0.93, g: 0.28, b: 0.25, a: 1}
-  - {r: 0.2, g: 0.64, b: 0.93, a: 1}
-  - {r: 0.92, g: 0.7, b: 0.18, a: 1}
-  - {r: 0.5, g: 0.28, b: 0.85, a: 1}
-  - {r: 0.2, g: 0.75, b: 0.5, a: 1}
-  - {r: 0.95, g: 0.38, b: 0.65, a: 1}
-  transitionColor: {r: 0.7, g: 0.7, b: 0.66, a: 1}
+  snowColor: {r: 1, g: 1, b: 1, a: 1}
+  grassColor: {r: 0.3, g: 0.72, b: 0.3, a: 1}
+  desertColor: {r: 1, g: 0.82, b: 0.25, a: 1}
   ringThickness: 0.247
-  stopPositions:
-  - 0.50000006
-  - 0.5
-  - 0.5
-  - 0.5
-  - 0.5
-  - 0.5
-
+  snowMoisture: 4
+  grassMoisture: 6
+  desertMoisture: 2
+  tileLabelFont: {fileID: 12800000, guid: 92affa0c1f97a944b81c33bdc9b3790f, type: 3}
