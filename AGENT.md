@@ -31,7 +31,6 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 | `CameraController` | 整站固定视口、站间推进、投影衔接和全景预览 |
 | `GameUIController` | Canvas 的按钮事件、动态文字与面板显隐 |
 | `Assets/Arts/Prototype` | 图形、字体、材质与历史网格资源 |
-| `Packages/com.farlocus.locus`、`Locus` | 编辑器插件及知识目录 |
 
 ## 调整位置
 
