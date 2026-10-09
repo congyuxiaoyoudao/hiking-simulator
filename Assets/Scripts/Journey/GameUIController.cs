@@ -7,6 +7,9 @@ namespace Hiking.Journey
     {
         GameFlowController flow;
         public GameObject startPanel, journeyPanel, panoramaPanel;
+        [Header("地块调试（布局及按钮事件保存在 Canvas）")]
+        public GameObject debugPanel;
+        public Text debugStatus;
         // Retain old serialized references while the scene migrates to automatic travel.
         [HideInInspector] public GameObject exitPrompt;
         [HideInInspector] public Text exitPromptText;
@@ -93,6 +96,10 @@ namespace Hiking.Journey
             quantityInput.SetTextWithoutNotify(flow.Placement.SelectedQuantity.ToString());
         }
         public void StartJourney() => flow.StartJourney(mode);
+        public void StartDebugMode() => flow.StartDebugMode();
+        public void StepDebugMap() => flow.StepDebugMap();
+        public void DebugPanLeft() { if (flow.IsDebugMode) flow.Camera.PanDebug(-4 * flow.Map.TileWidth); }
+        public void DebugPanRight() { if (flow.IsDebugMode) flow.Camera.PanDebug(4 * flow.Map.TileWidth); }
         public void Depart() { }
         public void CycleMode()
         {
@@ -116,7 +123,13 @@ namespace Hiking.Journey
             if (flow == null) return;
             var session = flow.Session;
             startPanel.SetActive(session.Phase == JourneyPhase.Start);
-            journeyPanel.SetActive(!flow.IsPreviewing && session.Phase != JourneyPhase.Start && session.Phase != JourneyPhase.Panorama);
+            journeyPanel.SetActive(!flow.IsDebugMode && !flow.IsPreviewing && session.Phase != JourneyPhase.Start && session.Phase != JourneyPhase.Panorama);
+            if (debugPanel != null) debugPanel.SetActive(flow.IsDebugMode);
+            if (flow.IsDebugMode)
+            {
+                if (debugStatus != null) debugStatus.text = $"地块调试 · 第 {flow.DebugStepCount} 步 · 共 {flow.Map.stations.Length * RingMapSettings.TilesPerStation} 块\n" +
+                    "拖动 / 滚轮 / ← → 浏览全图 · 括号为上一步变化（湿度、泥土为百分点）";
+            }
             panoramaPanel.SetActive(flow.IsPreviewing || session.Phase == JourneyPhase.Panorama);
             if (panoramaTitle != null) panoramaTitle.text = flow.IsPreviewing ? "全景预览" : "旅途完成 · 全景观察";
             var returnLabel = returnButton.GetComponentInChildren<Text>();
@@ -135,14 +148,14 @@ namespace Hiking.Journey
                 int quantity = flow.Placement.SelectedQuantity;
                 var selected = flow.Material(flow.Placement.SelectedMaterialId);
                 string action = selected == null ? "请选择材料" : flow.Session.Stock(selected.id) == 0 ? "库存不足，可返回选择不投放" :
-                    selected.id == "water" ? $"投水 {quantity} 份：当前地块水分 +{quantity}" : $"投种 {quantity} 份：当前投放点种子 +{quantity}";
-                placementPromptText.text = $"第 {slot.tileIndex + 1} 块 · 水分 {slot.station.MoistureAt(slot.tileIndex)} · 种子 {slot.SeedCount}\n{action}";
+                    selected.id == "water" ? $"投水 {quantity} 份：先补地表水（上限 30），再补土壤" : $"投种 {quantity} 份：当前投放点种子 +{quantity}";
+                placementPromptText.text = $"第 {slot.tileIndex + 1} 块 · 地表水 {slot.station.MoistureAt(slot.tileIndex):0.0} · 种子 {slot.SeedCount}\n{action}";
                 if (!quantityInput.isFocused) quantityInput.SetTextWithoutNotify(quantity.ToString());
                 quantityMinus.interactable = quantity > 1;
                 quantityPlus.interactable = quantity < flow.Session.Stock(flow.Placement.SelectedMaterialId);
                 confirmPlacement.interactable = flow.Placement.CanConfirm;
             }
-            if (hint != null) hint.text = "自动前行 · 白框为投放点 · 灰蓝色为过渡块 · 下方数字为水分，框内数字为种子";
+            if (hint != null) hint.text = "自动前行 · 白框为投放点 · 灰蓝色为过渡块 · 下方为地表水，框内为已投种子";
             if (toast != null && Time.unscaledTime > toastUntil) toast.text = "";
         }
         void UpdateMaterials(MaterialButton[] views, bool available)

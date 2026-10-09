@@ -5,6 +5,16 @@ namespace Hiking.Journey
     // Saved provider entry point retained; generation now uses straight route coordinates.
     public static class RingMapAssembler
     {
+        // Snow and desert can meet only after a grass station has separated them.
+        public static StationTheme ChooseTheme(StationTheme? previous)
+        {
+            if (previous == StationTheme.Snow)
+                return UnityEngine.Random.Range(0, 2) == 0 ? StationTheme.Snow : StationTheme.Grass;
+            if (previous == StationTheme.Desert)
+                return UnityEngine.Random.Range(0, 2) == 0 ? StationTheme.Desert : StationTheme.Grass;
+            return (StationTheme)UnityEngine.Random.Range(0, 3);
+        }
+
         public static JourneyMap Build(RingMapSettings settings, Transform parent)
         {
             if (settings == null || settings.pathMaterial == null || settings.blockCount < 1)
@@ -26,10 +36,10 @@ namespace Hiking.Journey
                     station.transform.SetParent(root.transform, false);
                     station.stationId = "station-" + (i + 1);
                     station.startDistance = i * section; station.length = section; station.tileCount = patches;
-                    station.theme = (StationTheme)UnityEngine.Random.Range(0, 3);
+                    station.theme = ChooseTheme(i == 0 ? (StationTheme?)null : map.stations[i - 1].theme);
                     station.cameraRange = new Vector2(i * section, (i + 1) * section);
                     map.stations[i] = station;
-                    station.InitializeMoisture(settings.InitialMoisture(station.theme));
+                    station.InitializeTiles(settings);
                     for (int tile = 0; tile < patches; tile++)
                     {
                         var anchor = Anchor(map, station.transform, "Moisture_" + tile,
@@ -61,6 +71,7 @@ namespace Hiking.Journey
                     }
                     AddPatches(map, station.transform, i * section, section,
                         patches, settings, settings.ThemeColor(station.theme));
+                    AddNaturalPlants(map, station, settings);
                 }
                 map.finishPoint = Anchor(map, root.transform, "FinishPoint_100Percent",
                     new Vector3(map.RouteLength - map.TileWidth * .5f, settings.ringThickness * .5f + .5f, 0));
@@ -76,6 +87,39 @@ namespace Hiking.Journey
             point.SetParent(parent, false);
             map.RegisterRouteObject(point, route);
             return point;
+        }
+        static void AddNaturalPlants(JourneyMap map, Station station, RingMapSettings settings)
+        {
+            if (settings.plantCatalog == null) return;
+            for (int tile = 0; tile < station.tileCount; tile++)
+            {
+                var instances = station.Tiles[tile].NaturalPlants;
+                for (int i = 0; i < instances.Length; i++)
+                {
+                    var definition = settings.plantCatalog.Find(instances[i].plantId);
+                    if (definition == null || definition.StageCount == 0) continue;
+                    int stageIndex = Mathf.Clamp(instances[i].stageIndex, 0, definition.StageCount - 1);
+                    var stage = definition.stages[stageIndex];
+                    var sprite = stage.sprite != null ? stage.sprite : settings.fallbackPlantSprite;
+                    if (sprite == null) continue;
+                    var plant = new GameObject("NaturalPlant_" + tile + "_" + i + "_" + definition.id);
+                    plant.transform.SetParent(station.transform, false);
+                    var renderer = plant.AddComponent<SpriteRenderer>();
+                    station.BindNaturalPlant(instances[i], renderer);
+                    renderer.sprite = sprite;
+                    renderer.color = stage.sprite == null ? stage.fallbackColor : Color.white;
+                    // The fox SpriteRenderer is order 10; foreground covers it and it covers background.
+                    renderer.sortingOrder = definition.isForeground ? 20 : 0;
+                    float size = Mathf.Min(station.TileWidth * .16f, .16f);
+                    float spriteSize = Mathf.Max(sprite.bounds.size.x, sprite.bounds.size.y);
+                    plant.transform.localScale = Vector3.one * (size / Mathf.Max(.001f, spriteSize));
+                    float x = station.TileCenter(tile) + (i - (instances.Length - 1) * .5f) * station.TileWidth * .16f;
+                    float y = settings.ringThickness * .5f + settings.foregroundPlantY +
+                        (definition.isForeground ? 0f : Mathf.Max(0, settings.backgroundPlantOffset));
+                    map.RegisterRouteObject(plant.transform,
+                        new Vector3(x, y, -.48f));
+                }
+            }
         }
         static void AddPatches(JourneyMap map, Transform parent, float start, float length,
             int count, RingMapSettings settings, Color color)

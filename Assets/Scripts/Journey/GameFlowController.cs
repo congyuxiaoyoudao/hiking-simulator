@@ -23,6 +23,8 @@ namespace Hiking.Journey
         double lastTime;
         int generation;
         public bool IsPreviewing { get; private set; }
+        public bool IsDebugMode { get; private set; }
+        public int DebugStepCount { get; private set; }
         public Station CurrentStation => Map != null ? Map.stations[Session.StationIndex] : null;
         void Start()
         {
@@ -34,7 +36,7 @@ namespace Hiking.Journey
         {
             double now = Time.realtimeSinceStartupAsDouble;
             float delta = (float)(now - lastTime); lastTime = now;
-            if (IsPreviewing) return;
+            if (IsPreviewing || IsDebugMode) return;
             Session.Tick(delta);
         }
         public MaterialDefinition Material(string id) => Array.Find(Config.materials, entry => entry.id == id);
@@ -59,9 +61,34 @@ namespace Hiking.Journey
                 ReturnToStart(); UI.Notify("无法开始旅途：" + error.Message); Debug.LogException(error);
             }
         }
+        public void StartDebugMode()
+        {
+            if (Session.Phase != JourneyPhase.Start || Map != null) return;
+            try
+            {
+                Map = MapProvider.CreateMap(WorldRoot);
+                if (!Map.Validate(out string error)) throw new InvalidOperationException(error);
+                Session.Begin(Map.stations.Length, .1, Config.materials);
+                generation++; IsDebugMode = true; DebugStepCount = 0; CurrentTileIndex = 0;
+                Activity = JourneyActivity.None;
+                Traveler.CancelMovement(); Traveler.gameObject.SetActive(false);
+                foreach (var station in Map.stations) station.SetDebugLabels(true);
+                Camera.ShowDebugMap();
+            }
+            catch (Exception error)
+            {
+                ReturnToStart(); UI.Notify("无法打开调试地图：" + error.Message); Debug.LogException(error);
+            }
+        }
+        public void StepDebugMap()
+        {
+            if (!IsDebugMode || Map == null) return;
+            foreach (var station in Map.stations) station.StepTiles(Map.sourceSettings.infiltrationPerStep);
+            DebugStepCount++;
+        }
         void Advance()
         {
-            if (Map == null || IsPreviewing || Traveler.IsMoving || UI.IsModalOpen) return;
+            if (Map == null || IsDebugMode || IsPreviewing || Traveler.IsMoving || UI.IsModalOpen) return;
             if (CurrentTileIndex == CurrentStation.tileCount - 1) { Depart(); return; }
             Activity = JourneyActivity.Walking;
             int nextTile = CurrentTileIndex + 1, currentGeneration = generation;
@@ -107,7 +134,7 @@ namespace Hiking.Journey
         public void ReturnToStart()
         {
             generation++; UI.CloseExitPrompt(); UI.ClosePlacementPrompt(false);
-            IsPreviewing = false; Traveler.Paused = false;
+            IsPreviewing = false; IsDebugMode = false; DebugStepCount = 0; Traveler.Paused = false;
             Activity = JourneyActivity.None; CurrentTileIndex = 0;
             Traveler.CancelMovement(); Camera.ResetCamera(); Placement.ClearSelection();
             Traveler.transform.SetParent(null, true); Traveler.gameObject.SetActive(false);
@@ -116,7 +143,7 @@ namespace Hiking.Journey
         }
         public void PreviewPanorama()
         {
-            if (Map == null || IsPreviewing || UI.IsModalOpen || Session.Phase == JourneyPhase.Revealing || Session.Phase == JourneyPhase.Panorama) return;
+            if (Map == null || IsDebugMode || IsPreviewing || UI.IsModalOpen || Session.Phase == JourneyPhase.Revealing || Session.Phase == JourneyPhase.Panorama) return;
             IsPreviewing = true; Traveler.Paused = true;
             Camera.RevealPanorama(Map.panoramaBounds, () => { });
         }

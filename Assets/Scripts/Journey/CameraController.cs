@@ -33,6 +33,66 @@ namespace Hiking.Journey
         public float ProjectionBlend { get; private set; }
 
         float journeyCenter;
+        float debugCenter;
+        public float DebugCenter => debugCenter;
+        float DebugViewWidth => Mathf.Min(flow.Map.RouteLength + flow.Map.TileWidth,
+            Mathf.Max(6 * flow.Map.TileWidth, 3.375f * WorldCamera.aspect));
+        public void ShowDebugMap()
+        {
+            ResetCamera(); flow.Map.ShowJourney();
+            debugCenter = DebugViewWidth * .5f - flow.Map.TileWidth * .5f;
+            FrameDebugMap();
+        }
+        public void PanDebug(float distance)
+        {
+            if (flow == null || !flow.IsDebugMode || flow.Map == null) return;
+            float width = DebugViewWidth;
+            float padding = flow.Map.TileWidth * .5f;
+            debugCenter = Mathf.Clamp(debugCenter + distance, width * .5f - padding,
+                flow.Map.RouteLength - width * .5f + padding);
+            FrameDebugMap();
+        }
+        void FrameDebugMap()
+        {
+            var map = flow.Map;
+            float width = DebugViewWidth;
+            debugCenter = Mathf.Clamp(debugCenter, width * .5f - map.TileWidth * .5f,
+                map.RouteLength - width * .5f + map.TileWidth * .5f);
+            WorldCamera.ResetProjectionMatrix(); WorldCamera.orthographic = true;
+            WorldCamera.orthographicSize = width / (2 * Mathf.Max(.1f, WorldCamera.aspect));
+            var rotation = Quaternion.Euler(overviewPitchAngle, 0, 0);
+            var target = map.transform.position + new Vector3(debugCenter - map.RouteLength * .5f, 0, 0)
+                - rotation * Vector3.up * .7f;
+            WorldCamera.transform.SetPositionAndRotation(target - rotation * Vector3.forward * 30, rotation);
+        }
+        void BrowseDebugMap()
+        {
+            var pointer = Pointer.current;
+            if (pointer != null)
+            {
+                Vector2 position = pointer.position.ReadValue();
+                if (!Application.isFocused || !pointer.press.isPressed) dragging = false;
+                if (Application.isFocused && pointer.press.wasPressedThisFrame && !PointerUtility.OverUI(position))
+                { dragging = true; lastPointer = position; }
+                if (dragging)
+                {
+                    PanDebug(-(position.x - lastPointer.x) * DebugViewWidth / Mathf.Max(1, WorldCamera.pixelWidth));
+                    lastPointer = position;
+                }
+                if (Application.isFocused && !PointerUtility.OverUI(position) && Mouse.current != null)
+                {
+                    Vector2 scroll = Mouse.current.scroll.ReadValue();
+                    PanDebug((scroll.x - scroll.y) / 120f * flow.Map.TileWidth * 2);
+                }
+            }
+            var keyboard = Keyboard.current;
+            if (Application.isFocused && keyboard != null)
+            {
+                float direction = (keyboard.rightArrowKey.isPressed ? 1 : 0) - (keyboard.leftArrowKey.isPressed ? 1 : 0);
+                PanDebug(direction * flow.Map.TileWidth * 8 * Time.unscaledDeltaTime);
+            }
+            FrameDebugMap();
+        }
         public void RestoreJourneyView() => FrameJourney();
         public float JourneyViewWidth => flow.CurrentStation.length;
         public void Initialize(GameFlowController owner)
@@ -55,7 +115,8 @@ namespace Hiking.Journey
         void LateUpdate()
         {
             if (flow == null || flow.Map == null) return;
-            if (reveal == null && (flow.IsPreviewing || flow.Session.Phase == JourneyPhase.Panorama)) BrowsePanorama();
+            if (flow.IsDebugMode) BrowseDebugMap();
+            else if (reveal == null && (flow.IsPreviewing || flow.Session.Phase == JourneyPhase.Panorama)) BrowsePanorama();
             else if (reveal == null && flow.Session.Phase != JourneyPhase.Revealing) FrameJourney();
             flow.Traveler.FaceCamera(WorldCamera);
             if (labels == null) labels = flow.Map.GetComponentsInChildren<TextMesh>(true);

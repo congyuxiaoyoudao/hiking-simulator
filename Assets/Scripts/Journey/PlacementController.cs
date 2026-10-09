@@ -11,7 +11,7 @@ namespace Hiking.Journey
         public event Action<PlacementRequest> PlacementCommitted;
         GameFlowController flow;
         public void Initialize(GameFlowController owner) => flow = owner;
-        public bool IsAtSlot(PlacementSlot slot) => flow.Map != null && !flow.IsPreviewing &&
+        public bool IsAtSlot(PlacementSlot slot) => flow.Map != null && !flow.IsDebugMode && !flow.IsPreviewing &&
             flow.Session.Phase == JourneyPhase.AtStation && !flow.Traveler.IsMoving && slot != null &&
             slot.station == flow.CurrentStation && Array.IndexOf(flow.CurrentStation.slots, slot) >= 0 &&
             Mathf.Abs(flow.Map.RouteDistanceAtProgress(flow.Traveler.Progress01) - slot.station.TileCenter(slot.tileIndex)) < .001f;
