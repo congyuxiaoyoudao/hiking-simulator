@@ -23,11 +23,28 @@ namespace Hiking.Journey
         public PlantCatalog plantCatalog;
         [Tooltip("植物阶段未配置 Sprite 时使用的白色方块，按阶段占位色着色")]
         public Sprite fallbackPlantSprite;
+        [Tooltip("背景植物未配置 Sprite 时使用的树形占位图，按阶段占位色着色")]
+        public Sprite fallbackBackgroundPlantSprite;
         [Header("植物前后景位置（新地图生效）")]
         [Tooltip("前景植物相对道路顶面的 Y 轴高度；背景植物以此为基线")]
         [InspectorName("前景基线高度（Y）")] public float foregroundPlantY = .13f;
         [Tooltip("背景植物相对前景基线沿 Y 轴向上移动的距离")]
         [InspectorName("背景上移量"), Min(0)] public float backgroundPlantOffset = .96f;
+        [InspectorName("背景植物占位高度"), Min(.1f)] public float backgroundPlantHeight = 2f;
+        [Header("主题远景（每站一张，新地图生效）")]
+        public Sprite snowLandscape;
+        public Sprite grassLandscape;
+        public Sprite desertLandscape;
+        [Tooltip("远景专用 URP Unlit 材质")]
+        public Material landscapeMaterial;
+        [Tooltip("远景图片下边缘的路线 Y 偏移；镜头俯角会让远处画面在屏幕中上移")]
+        public float landscapeBaseHeight = -2.1f;
+        [Tooltip("远景离道路的纵深距离；数值越大越远")]
+        public float landscapeDepth = 1.6f;
+        [Tooltip("保持远景宽度不变，向上延展画幅以填满天空")]
+        [Min(.1f)] public float landscapeHeightScale = 1.4f;
+        public Sprite LandscapeFor(StationTheme theme) => theme == StationTheme.Snow ? snowLandscape :
+            theme == StationTheme.Grass ? grassLandscape : desertLandscape;
         [Header("地块随机初值（百分比以 0～1 填写，新地图生效）")]
         public Vector2 soilContentRange = new Vector2(0, 1);
         public Vector2Int plantCountRange = new Vector2Int(0, 5);

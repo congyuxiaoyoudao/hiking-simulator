@@ -119,6 +119,7 @@ namespace Hiking.Journey
             else if (reveal == null && (flow.IsPreviewing || flow.Session.Phase == JourneyPhase.Panorama)) BrowsePanorama();
             else if (reveal == null && flow.Session.Phase != JourneyPhase.Revealing) FrameJourney();
             flow.Traveler.FaceCamera(WorldCamera);
+            flow.Map.FrameLandscapes(WorldCamera);
             if (labels == null) labels = flow.Map.GetComponentsInChildren<TextMesh>(true);
             foreach (var label in labels) label.transform.rotation = WorldCamera.transform.rotation;
         }

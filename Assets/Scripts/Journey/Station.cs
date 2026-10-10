@@ -102,15 +102,18 @@ namespace Hiking.Journey
                         float y = mapSettings.ringThickness * .5f + mapSettings.foregroundPlantY +
                             (definition.isForeground ? 0f : Mathf.Max(0, mapSettings.backgroundPlantOffset));
                         map.RegisterRouteObject(obj.transform,
-                            new Vector3(TileCenter(tile) + plant.positionOffset * TileWidth, y, -.48f));
+                            new Vector3(TileCenter(tile) + plant.positionOffset * TileWidth, y,
+                                definition.isForeground ? 0f : .35f));
                     }
                     var stage = definition.stages[Mathf.Clamp(plant.stageIndex, 0, definition.StageCount - 1)];
-                    var sprite = stage.sprite != null ? stage.sprite : mapSettings.fallbackPlantSprite;
+                    var sprite = stage.sprite != null ? stage.sprite :
+                        definition.isForeground ? mapSettings.fallbackPlantSprite : mapSettings.fallbackBackgroundPlantSprite;
                     marker.enabled = sprite != null;
                     if (sprite == null) continue;
                     marker.sprite = sprite;
                     marker.color = stage.sprite == null ? stage.fallbackColor : Color.white;
-                    float size = Mathf.Min(TileWidth * .16f, .16f);
+                    float size = definition.isForeground ? Mathf.Min(TileWidth * .16f, .16f) :
+                        Mathf.Max(.1f, mapSettings.backgroundPlantHeight);
                     marker.transform.localScale = Vector3.one * (size /
                         Mathf.Max(.001f, Mathf.Max(sprite.bounds.size.x, sprite.bounds.size.y)));
                 }

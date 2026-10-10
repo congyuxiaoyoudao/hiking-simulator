@@ -40,6 +40,34 @@ namespace Hiking.Journey
                     station.cameraRange = new Vector2(i * section, (i + 1) * section);
                     map.stations[i] = station;
                     station.InitializeTiles(settings);
+                    var landscape = settings.LandscapeFor(station.theme);
+                    if (landscape != null)
+                    {
+                        if (settings.landscapeMaterial == null)
+                            throw new InvalidOperationException("请为主题远景配置材质。");
+                        var backdrop = Anchor(map, station.transform, "Landscape_" + station.theme,
+                            new Vector3(station.startDistance + station.length * .5f,
+                                settings.ringThickness * .5f + settings.landscapeBaseHeight,
+                                Mathf.Max(0, settings.landscapeDepth)));
+                        var mesh = new Mesh { name = "LandscapeQuad" };
+                        mesh.vertices = new[] { new Vector3(-.5f, 0, 0), new Vector3(.5f, 0, 0),
+                            new Vector3(.5f, 1, 0), new Vector3(-.5f, 1, 0) };
+                        mesh.uv = new[] { Vector2.zero, Vector2.right, Vector2.one, Vector2.up };
+                        mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+                        mesh.RecalculateNormals(); mesh.RecalculateBounds();
+                        backdrop.gameObject.AddComponent<MeshFilter>().sharedMesh = mesh;
+                        var material = new Material(settings.landscapeMaterial) { name = "LandscapeBackdrop" };
+                        material.SetTexture("_BaseMap", landscape.texture);
+                        material.SetColor("_BaseColor", Color.white);
+                        material.SetFloat("_Cull", 0);
+                        var renderer = backdrop.gameObject.AddComponent<MeshRenderer>();
+                        renderer.sharedMaterial = material;
+                        renderer.sortingOrder = -1000;
+                        backdrop.localScale = new Vector3(station.length,
+                            station.length * landscape.bounds.size.y / Mathf.Max(.01f, landscape.bounds.size.x) *
+                            Mathf.Max(.1f, settings.landscapeHeightScale), 1);
+                        map.RegisterLandscape(renderer, material, mesh);
+                    }
                     for (int tile = 0; tile < patches; tile++)
                     {
                         var anchor = Anchor(map, station.transform, "Moisture_" + tile,

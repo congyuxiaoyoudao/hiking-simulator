@@ -32,6 +32,26 @@ namespace Hiking.Journey
         readonly List<Vector3[]> displayVertices = new List<Vector3[]>();
         readonly List<Transform> routeObjects = new List<Transform>();
         readonly List<Vector3> objectCoordinates = new List<Vector3>();
+        readonly List<MeshRenderer> landscapes = new List<MeshRenderer>();
+        readonly List<Material> landscapeMaterials = new List<Material>();
+        readonly List<Mesh> landscapeMeshes = new List<Mesh>();
+
+        public void RegisterLandscape(MeshRenderer renderer, Material material, Mesh mesh)
+        {
+            landscapes.Add(renderer);
+            landscapeMaterials.Add(material);
+            landscapeMeshes.Add(mesh);
+        }
+        public void FrameLandscapes(Camera camera)
+        {
+            bool visible = camera != null && camera.orthographic && !ShowingRing;
+            foreach (var landscape in landscapes)
+            {
+                if (landscape == null) continue;
+                landscape.enabled = visible;
+                if (visible) landscape.transform.rotation = camera.transform.rotation;
+            }
+        }
 
         // Mesh vertices are authored in route coordinates. Runtime meshes are owned by this map.
         public void RegisterRouteMesh(Mesh mesh)
@@ -186,6 +206,10 @@ namespace Hiking.Journey
 
         void OnDestroy()
         {
+            foreach (var material in landscapeMaterials)
+                if (material != null) { if (Application.isPlaying) Destroy(material); else DestroyImmediate(material); }
+            foreach (var mesh in landscapeMeshes)
+                if (mesh != null) { if (Application.isPlaying) Destroy(mesh); else DestroyImmediate(mesh); }
             foreach (var mesh in ringMeshes) if (mesh != null) Destroy(mesh);
             if (generatedMeshes == null) return;
             foreach (var mesh in generatedMeshes)
