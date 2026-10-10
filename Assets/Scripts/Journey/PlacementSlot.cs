@@ -49,11 +49,12 @@ namespace Hiking.Journey
             for (int i = 4; i < colors.Length; i++) colors[i] = active ? color : Color.white;
             frameMesh.colors = colors;
         }
-        public void ShowPlacement(MaterialDefinition material, int quantity)
+        public void ShowPlacement(MaterialDefinition material, int quantity, int currentStep)
         {
             if (material.id == "water") station.AddWater(tileIndex, quantity);
             else if (material.id == "seed")
             {
+                station.AddSeeds(tileIndex, quantity, currentStep);
                 SeedCount += quantity;
                 if (label != null) { label.text = SeedCount.ToString(); label.color = material.color; }
             }

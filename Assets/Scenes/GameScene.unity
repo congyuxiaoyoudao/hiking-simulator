@@ -8625,7 +8625,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "每步：渗水 → 蒸发 → 植物生长；植株数字从左到右为生命/阶段，+ 增长 - 衰退 = 保持"
+  m_Text: "每步：邻块流动→渗水→蒸发→植物/种子；植株数字为生命/阶段，+ 增长 - 衰退 = 保持"
 --- !u!222 &2200000126
 CanvasRenderer:
   m_ObjectHideFlags: 0

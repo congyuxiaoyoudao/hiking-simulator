@@ -16,6 +16,7 @@ namespace Hiking.Journey
         public float BlockAngle => 360f / (stations.Length + 1);
         [System.NonSerialized] public Mesh[] generatedMeshes;
         public float RouteLength { get; set; }
+        public int SimulationStep { get; private set; }
         public float Bend { get; private set; }
         public int AssembledPatchCount { get; private set; }
         public bool ShowingRing { get; private set; }
@@ -92,6 +93,60 @@ namespace Hiking.Journey
             routeObjects.Add(target); objectCoordinates.Add(routeCoordinates);
             target.position = transform.TransformPoint(RouteGeometry.Point(routeCoordinates, RouteLength, Bend));
         }
+        public void UnregisterRouteObject(Transform target)
+        {
+            int index = routeObjects.IndexOf(target);
+            if (index < 0) return;
+            routeObjects.RemoveAt(index);
+            objectCoordinates.RemoveAt(index);
+        }
+        // One step represents one simulated second in both the journey and debug map.
+        public void StepEnvironment()
+        {
+            SimulationStep++;
+            int total = stations.Length * RingMapSettings.TilesPerStation;
+            var tiles = new TileState[total];
+            var beforeFlow = new TileSnapshot[total];
+            for (int index = 0; index < total; index++)
+            {
+                tiles[index] = TileAt(index);
+                beforeFlow[index] = tiles[index].Snapshot();
+            }
+            TileNeighborFlow.Exchange(tiles, sourceSettings.temperatureFlowPerStep,
+                sourceSettings.soilWaterFlowPerStep, sourceSettings.soilContentFlowPerStep);
+            for (int station = 0; station < stations.Length; station++)
+                stations[station].StepTiles(sourceSettings.infiltrationPerStep, SimulationStep, this,
+                    beforeFlow, station * RingMapSettings.TilesPerStation);
+            var emissions = new List<(int tile, string plantId)>();
+            for (int index = 0; index < total; index++)
+            {
+                var tile = stations[index / RingMapSettings.TilesPerStation].Tiles[index % RingMapSettings.TilesPerStation];
+                foreach (var plant in tile.NaturalPlants)
+                {
+                    var definition = sourceSettings.plantCatalog?.Find(plant.plantId);
+                    bool mature = definition != null && definition.StageCount >= 3 && plant.stageIndex >= 2 &&
+                        plant.life >= definition.stages[2].minLife &&
+                        definition.HighestSuitableStage(tile.SoilContent * 100f, tile.SoilHumidity * 100f) >= 2;
+                    plant.matureSteps = mature ? plant.matureSteps + 1 : 0;
+                    if (plant.matureSteps < 30) continue;
+                    plant.matureSteps = 0;
+                    emissions.Add((index, plant.plantId));
+                }
+            }
+            // Deliver after all tiles have updated, so new seeds cannot germinate on the emission step.
+            foreach (var emission in emissions)
+            {
+                int left = emission.tile - 1, right = emission.tile + 1;
+                bool canLeft = left >= 0 && TileAt(left).FreePlantCapacity > 0;
+                bool canRight = right < total && TileAt(right).FreePlantCapacity > 0;
+                if (!canLeft && !canRight) continue;
+                int target = canLeft && canRight ? (UnityEngine.Random.Range(0, 2) == 0 ? left : right) :
+                    canLeft ? left : right;
+                if (TileAt(target).TryAddSeed(emission.plantId, SimulationStep))
+                    stations[target / RingMapSettings.TilesPerStation].RefreshTile(target % RingMapSettings.TilesPerStation);
+            }
+        }
+        TileState TileAt(int index) => stations[index / RingMapSettings.TilesPerStation].Tiles[index % RingMapSettings.TilesPerStation];
         public float TileWidth => stations[0].TileWidth;
         public float ViewStartDistance(float progress) => Mathf.Clamp(RouteDistanceAtProgress(progress) - ViewWidth * .5f, 0, RouteLength - ViewWidth);
         public float RouteDistanceAtProgress(float progress) => Mathf.Lerp(TileWidth * .5f, RouteLength - TileWidth * .5f, Mathf.Clamp01(progress));

@@ -21,6 +21,7 @@ namespace Hiking.Journey
         public JourneyActivity Activity { get; private set; }
         public int CurrentTileIndex { get; private set; }
         double lastTime;
+        float environmentSeconds;
         int generation;
         public bool IsPreviewing { get; private set; }
         public bool IsDebugMode { get; private set; }
@@ -38,6 +39,13 @@ namespace Hiking.Journey
             float delta = (float)(now - lastTime); lastTime = now;
             if (IsPreviewing || IsDebugMode) return;
             Session.Tick(delta);
+            if (Map == null || UI.IsModalOpen || Activity == JourneyActivity.Complete) return;
+            environmentSeconds += Mathf.Max(0, delta);
+            while (environmentSeconds >= 1f)
+            {
+                Map.StepEnvironment();
+                environmentSeconds -= 1f;
+            }
         }
         public MaterialDefinition Material(string id) => Array.Find(Config.materials, entry => entry.id == id);
         public void StartJourney(JourneyMode mode)
@@ -48,7 +56,7 @@ namespace Hiking.Journey
                 Map = MapProvider.CreateMap(WorldRoot);
                 if (!Map.Validate(out string error)) throw new InvalidOperationException(error);
                 Session.Begin(Map.stations.Length, .1, Config.materials);
-                generation++; Mode = mode; CurrentTileIndex = 0;
+                generation++; Mode = mode; CurrentTileIndex = 0; environmentSeconds = 0;
                 Traveler.gameObject.SetActive(true); Traveler.PlaceOnRoute(Map);
                 Camera.ShowStation(CurrentStation);
                 lastTime = Time.realtimeSinceStartupAsDouble;
@@ -69,7 +77,7 @@ namespace Hiking.Journey
                 Map = MapProvider.CreateMap(WorldRoot);
                 if (!Map.Validate(out string error)) throw new InvalidOperationException(error);
                 Session.Begin(Map.stations.Length, .1, Config.materials);
-                generation++; IsDebugMode = true; DebugStepCount = 0; CurrentTileIndex = 0;
+                generation++; IsDebugMode = true; DebugStepCount = 0; CurrentTileIndex = 0; environmentSeconds = 0;
                 Activity = JourneyActivity.None;
                 Traveler.CancelMovement(); Traveler.gameObject.SetActive(false);
                 foreach (var station in Map.stations) station.SetDebugLabels(true);
@@ -83,7 +91,7 @@ namespace Hiking.Journey
         public void StepDebugMap()
         {
             if (!IsDebugMode || Map == null) return;
-            foreach (var station in Map.stations) station.StepTiles(Map.sourceSettings.infiltrationPerStep);
+            Map.StepEnvironment();
             DebugStepCount++;
         }
         void Advance()
@@ -134,7 +142,7 @@ namespace Hiking.Journey
         public void ReturnToStart()
         {
             generation++; UI.CloseExitPrompt(); UI.ClosePlacementPrompt(false);
-            IsPreviewing = false; IsDebugMode = false; DebugStepCount = 0; Traveler.Paused = false;
+            IsPreviewing = false; IsDebugMode = false; DebugStepCount = 0; environmentSeconds = 0; Traveler.Paused = false;
             Activity = JourneyActivity.None; CurrentTileIndex = 0;
             Traveler.CancelMovement(); Camera.ResetCamera(); Placement.ClearSelection();
             Traveler.transform.SetParent(null, true); Traveler.gameObject.SetActive(false);

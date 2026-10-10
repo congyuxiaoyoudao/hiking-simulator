@@ -31,6 +31,9 @@ MonoBehaviour:
   evaporationRateRange: {x: 0.1, y: 0.6}
   heightRange: {x: 0, y: 1}
   surfaceWaterRange: {x: 0, y: 30}
+  temperatureFlowPerStep: 0.01
+  soilWaterFlowPerStep: 0.1
+  soilContentFlowPerStep: 0.01
   infiltrationPerStep: 5
   tileLabelFont: {fileID: 12800000, guid: 92affa0c1f97a944b81c33bdc9b3790f, type: 3}
   transitionTileColor: {r: 0.4, g: 0.47, b: 0.58, a: 1}

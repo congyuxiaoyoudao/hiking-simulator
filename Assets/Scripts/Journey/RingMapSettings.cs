@@ -36,6 +36,10 @@ namespace Hiking.Journey
         public Vector2 evaporationRateRange = new Vector2(.1f, .6f);
         public Vector2Int heightRange = new Vector2Int(0, 1);
         public Vector2 surfaceWaterRange = new Vector2(0, 30);
+        [Header("相邻地块流动（每步，先于渗水和蒸发）")]
+        [InspectorName("温度流动（°C）"), Min(0)] public float temperatureFlowPerStep = .01f;
+        [InspectorName("土壤水流动（水量）"), Min(0)] public float soilWaterFlowPerStep = .1f;
+        [InspectorName("泥土含量流动（0～1）"), Min(0)] public float soilContentFlowPerStep = .01f;
         [Header("单步水分模拟")]
         [Tooltip("每步渗水上限 = 此值 × 泥土含量，受地表水和剩余容量限制")]
         [Min(0)] public float infiltrationPerStep = 5;

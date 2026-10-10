@@ -62,7 +62,7 @@ MonoBehaviour:
   - id: tree
     displayName: "\u5C0F\u6811"
     suitableHabitats: 2
-    isForeground: 1
+    isForeground: 0
     maxHumidityPercent: 90
     maxSoilPercent: 90
     maxLife: 90

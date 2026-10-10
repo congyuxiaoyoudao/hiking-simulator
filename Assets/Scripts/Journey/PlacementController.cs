@@ -25,7 +25,7 @@ namespace Hiking.Journey
         {
             if (!flow.UI.PlacementDecisionOpen || !IsAtSlot(PendingSlot)) return;
             flow.UI.ShowPlacementPrompt();
-            Select(flow.Session.Stock("seed") > 0 ? "seed" : "water");
+            Select(flow.Session.Stock("seed") > 0 && PendingSlot.station.CanReceiveSeeds(PendingSlot.tileIndex, 1) ? "seed" : "water");
         }
         public void SkipPlacement()
         {
@@ -59,7 +59,9 @@ namespace Hiking.Journey
         }
         public bool CanConfirm => flow.Activity == JourneyActivity.AwaitingPlacement && flow.UI.PlacementPromptOpen && IsAtSlot(PendingSlot) &&
             (SelectedMaterialId == "water" || SelectedMaterialId == "seed") && flow.Material(SelectedMaterialId) != null &&
-            SelectedQuantity > 0 && flow.Session.Stock(SelectedMaterialId) >= SelectedQuantity;
+            SelectedQuantity > 0 && flow.Session.Stock(SelectedMaterialId) >= SelectedQuantity &&
+            (SelectedMaterialId != "seed" || PendingSlot.station.CanReceiveSeeds(PendingSlot.tileIndex, SelectedQuantity)) &&
+            (SelectedMaterialId != "water" || SelectedQuantity <= Mathf.CeilToInt(30 - PendingSlot.station.Tiles[PendingSlot.tileIndex].SurfaceWater));
         public void ConfirmPlacement() => ApplyPlacement(PendingSlot);
         public bool ApplyPlacement(PlacementSlot slot)
         {
@@ -67,7 +69,7 @@ namespace Hiking.Journey
             var material = flow.Material(SelectedMaterialId);
             var request = new PlacementRequest(flow.Session.StationIndex, slot.slotId, material.id, SelectedQuantity);
             if (!flow.Session.TryPlace(request)) return false;
-            slot.ShowPlacement(material, request.Quantity);
+            slot.ShowPlacement(material, request.Quantity, flow.Map.SimulationStep);
             flow.CompletePlacementVisit();
             PlacementCommitted?.Invoke(request);
             flow.UI.Notify("已投放：" + material.displayName + " × " + request.Quantity);

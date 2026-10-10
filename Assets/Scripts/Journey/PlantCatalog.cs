@@ -24,10 +24,25 @@ namespace Hiking.Journey
         public int stageIndex;
         public int life = 1;
         public int lastLifeChange;
+        public int matureSteps;
+        public float positionOffset;
         public PlantInstance(string plantId, int stageIndex = 0)
         {
             this.plantId = plantId;
             this.stageIndex = stageIndex;
+        }
+    }
+
+    [Serializable]
+    public sealed class SeedInstance
+    {
+        public string plantId;
+        public int remainingSteps = 30;
+        public int createdStep;
+        public SeedInstance(string plantId, int createdStep)
+        {
+            this.plantId = plantId;
+            this.createdStep = createdStep;
         }
     }
 

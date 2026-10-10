@@ -147,9 +147,16 @@ namespace Hiking.Journey
             {
                 int quantity = flow.Placement.SelectedQuantity;
                 var selected = flow.Material(flow.Placement.SelectedMaterialId);
+                var tile = slot.station.Tiles[slot.tileIndex];
+                bool hasSuitablePlant = flow.Map.sourceSettings.plantCatalog != null &&
+                    flow.Map.sourceSettings.plantCatalog.SuitableFor(slot.station.theme).Length > 0;
                 string action = selected == null ? "请选择材料" : flow.Session.Stock(selected.id) == 0 ? "库存不足，可返回选择不投放" :
-                    selected.id == "water" ? $"投水 {quantity} 份：先补地表水（上限 30），再补土壤" : $"投种 {quantity} 份：当前投放点种子 +{quantity}";
-                placementPromptText.text = $"第 {slot.tileIndex + 1} 块 · 地表水 {slot.station.MoistureAt(slot.tileIndex):0.0} · 种子 {slot.SeedCount}\n{action}";
+                    selected.id == "water" ? tile.SurfaceWater >= 30 ? "地表水已满" :
+                        $"投水 {quantity} 份：增加地表水，上限 30" :
+                    !hasSuitablePlant ? "当前主题没有适宜生长的植物" :
+                    quantity > tile.FreePlantCapacity ? $"地块最多还能接收 {tile.FreePlantCapacity} 颗种子" :
+                    $"投种 {quantity} 份：待萌发种子最多存活 30 秒";
+                placementPromptText.text = $"第 {slot.tileIndex + 1} 块 · 地表水 {tile.SurfaceWater:0.0} · 已投种子 {slot.SeedCount} · 待萌发 {tile.SeedCount}\n{action}";
                 if (!quantityInput.isFocused) quantityInput.SetTextWithoutNotify(quantity.ToString());
                 quantityMinus.interactable = quantity > 1;
                 quantityPlus.interactable = quantity < flow.Session.Stock(flow.Placement.SelectedMaterialId);
